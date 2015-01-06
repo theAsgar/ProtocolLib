@@ -223,7 +223,12 @@ class ChannelInjector extends ByteToMessageDecoder implements Injector {
 			protocolEncoder = new MessageToByteEncoder<Object>() {
 				@Override
 				protected void encode(ChannelHandlerContext ctx, Object packet, ByteBuf output) throws Exception {
-					ChannelInjector.this.encode(ctx, packet, output);
+					if (packet instanceof WirePacket) {
+						// Special case for wire format
+						ChannelInjector.this.encodeWirePacket(ctx, (WirePacket) packet, output);
+					} else {
+						ChannelInjector.this.encode(ctx, packet, output);
+					}
 				}
 
 				@Override
@@ -379,6 +384,11 @@ class ChannelInjector extends ByteToMessageDecoder implements Injector {
 		if (channelListener.isDebug())
 			cause.printStackTrace();
 		super.exceptionCaught(ctx, cause);
+	}
+
+	protected void encodeWirePacket(ChannelHandlerContext ctx, WirePacket packet, ByteBuf output) throws Exception {
+		packet.writeId(output);
+		packet.writeBytes(output);
 	}
 
 	/**
@@ -776,13 +786,13 @@ class ChannelInjector extends ByteToMessageDecoder implements Injector {
 
 				// Clear cache
 				factory.invalidate(player);
+
+				// Clear player instances
+				// Should help fix memory leaks
+				this.player = null;
+				this.updated = null;
 			}
 		}
-
-		// Clear player instances
-		// Should help fix memory leaks
-		this.player = null;
-		this.updated = null;
 	}
 
 	/**
@@ -874,5 +884,9 @@ class ChannelInjector extends ByteToMessageDecoder implements Injector {
 		public ChannelInjector getChannelInjector() {
 			return injector;
 		}
+	}
+
+	public Channel getChannel() {
+		return originalChannel;
 	}
 }
