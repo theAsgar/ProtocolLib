@@ -1,5 +1,6 @@
 package com.comphenix.protocol.reflect;
 
+import java.lang.annotation.Annotation;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.GenericDeclaration;
 import java.lang.reflect.Member;
@@ -16,6 +17,7 @@ import com.google.common.collect.Lists;
  * 
  * @author Kristian
  */
+@SuppressWarnings("unused") // Java 8 compat
 public abstract class MethodInfo implements GenericDeclaration, Member {
 	/**
 	 * Wraps a method as a MethodInfo object.
@@ -24,6 +26,18 @@ public abstract class MethodInfo implements GenericDeclaration, Member {
 	 */
 	public static MethodInfo fromMethod(final Method method) {
 		return new MethodInfo() {
+			// @Override
+			public <T extends Annotation> T getAnnotation(Class<T> annotationClass) {
+				return method.getAnnotation(annotationClass);
+			}
+			// @Override
+			public Annotation[] getAnnotations() {
+				return method.getAnnotations();
+			}
+			// @Override
+			public Annotation[] getDeclaredAnnotations() {
+				return method.getDeclaredAnnotations();
+			}
 			@Override
 			public String getName() {
 				return method.getName();
@@ -104,6 +118,18 @@ public abstract class MethodInfo implements GenericDeclaration, Member {
 	 */
 	public static MethodInfo fromConstructor(final Constructor<?> constructor) {
 		return new MethodInfo() {
+			// @Override
+			public <T extends Annotation> T getAnnotation(Class<T> annotationClass) {
+				return constructor.getAnnotation(annotationClass);
+			}
+			// @Override
+			public Annotation[] getAnnotations() {
+				return constructor.getAnnotations();
+			}
+			// @Override
+			public Annotation[] getDeclaredAnnotations() {
+				return constructor.getDeclaredAnnotations();
+			}
 			@Override
 			public String getName() {
 				return constructor.getName();
@@ -197,7 +223,7 @@ public abstract class MethodInfo implements GenericDeclaration, Member {
 	public abstract String toGenericString();
 	
 	/**
-	 * Returns an array of Class objects that represent the types of the exceptions declared to be thrown by the 
+	 * Returns an array of Class objects that represent the types of the exceptions declared to be thrown by the
 	 * underlying method or constructor represented by this MethodInfo object.
 	 * @return The exception types declared as being thrown by the method or constructor this object represents.
 	 * @see Method#getExceptionTypes()
@@ -206,8 +232,8 @@ public abstract class MethodInfo implements GenericDeclaration, Member {
 	public abstract Class<?>[] getExceptionTypes();
 
 	/**
-	 * Returns a Class object that represents the formal return type of the method or constructor 
-	 * represented by this MethodInfo object. 
+	 * Returns a Class object that represents the formal return type of the method or constructor
+	 * represented by this MethodInfo object.
 	 * <p>
 	 * This is always {@link Void} for constructors.
 	 * @return The return value, or Void if a constructor.
@@ -216,10 +242,10 @@ public abstract class MethodInfo implements GenericDeclaration, Member {
 	public abstract Class<?> getReturnType();
 
 	/**
-	 * Returns an array of Class objects that represent the formal parameter types, in declaration order, 
+	 * Returns an array of Class objects that represent the formal parameter types, in declaration order,
 	 * of the method or constructor represented by this MethodInfo object.
 	 * @return The parameter types for the method or constructor this object represents.
-	 * @see Method#getParameterTypes() 
+	 * @see Method#getParameterTypes()
 	 * @see Constructor#getParameterTypes()
 	 */
 	public abstract Class<?>[] getParameterTypes();

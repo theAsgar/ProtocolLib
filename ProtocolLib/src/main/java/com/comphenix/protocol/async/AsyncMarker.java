@@ -110,7 +110,7 @@ public class AsyncMarker implements Serializable, Comparable<AsyncMarker> {
 	 * Create a container for asyncronous packets.
 	 * @param initialTime - the current time in milliseconds since 01.01.1970 00:00.
 	 */
-	AsyncMarker(PacketStream packetStream, long sendingIndex, long sendingDelta, long initialTime, long timeoutDelta) {
+	AsyncMarker(PacketStream packetStream, long sendingIndex, long initialTime, long timeoutDelta) {
 		if (packetStream == null)
 			throw new IllegalArgumentException("packetStream cannot be NULL");
 		
@@ -401,10 +401,11 @@ public class AsyncMarker implements Serializable, Comparable<AsyncMarker> {
 	
 	/**
 	 * Determine if Minecraft allows asynchronous processing of this packet.
+	 * @param event - packet event
 	 * @return TRUE if it does, FALSE otherwise.
+	 * @throws FieldAccessException If determining fails for some reasaon
 	 */
 	public boolean isMinecraftAsync(PacketEvent event) throws FieldAccessException {
-		
 		if (isMinecraftAsync == null && !alwaysSync) {
 			try {
 				isMinecraftAsync = FuzzyReflection.fromClass(MinecraftReflection.getPacketClass()).getMethodByName("a_.*");
@@ -419,7 +420,7 @@ public class AsyncMarker implements Serializable, Comparable<AsyncMarker> {
 				} else if (methods.size() == 1) {
 					// We're in 1.2.5
 					alwaysSync = true;
-				} else if (MinecraftVersion.getCurrentVersion().equals(MinecraftVersion.BOUNTIFUL_UPDATE)) {
+				} else if (MinecraftVersion.getCurrentVersion().isAtLeast(MinecraftVersion.BOUNTIFUL_UPDATE)) {
 					// The centralized async marker was removed in 1.8
 					// Incoming chat packets can be async
 					if (event.getPacketType() == PacketType.Play.Client.CHAT) {
@@ -436,7 +437,8 @@ public class AsyncMarker implements Serializable, Comparable<AsyncMarker> {
 						return false;
 					}
 				} else {
-					ProtocolLibrary.log(Level.WARNING, "Cannot determine asynchronous state of packets!");
+					ProtocolLibrary.log(Level.INFO, "Could not determine asynchronous state of packets.");
+					ProtocolLibrary.log(Level.INFO, "This can probably be ignored.");
 					alwaysSync = true;
 				}
 			}

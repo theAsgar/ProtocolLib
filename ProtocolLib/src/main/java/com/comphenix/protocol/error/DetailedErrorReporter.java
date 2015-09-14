@@ -79,7 +79,7 @@ public class DetailedErrorReporter implements ErrorReporter {
 	protected String pluginName;
 	
 	// Whether or not Apache Commons is not present
-	protected boolean apacheCommonsMissing;
+	protected static boolean apacheCommonsMissing;
 	
 	// Whether or not detailed errror reporting is enabled
 	protected boolean detailedReporting;
@@ -93,6 +93,7 @@ public class DetailedErrorReporter implements ErrorReporter {
 	
 	/**
 	 * Create a default error reporting system.
+	 * @param plugin - the plugin owner.
 	 */
 	public DetailedErrorReporter(Plugin plugin) {
 		this(plugin, DEFAULT_PREFIX, DEFAULT_SUPPORT_URL);
@@ -121,11 +122,19 @@ public class DetailedErrorReporter implements ErrorReporter {
 			throw new IllegalArgumentException("Plugin cannot be NULL.");
 		
 		this.pluginReference = new WeakReference<Plugin>(plugin);
-		this.pluginName = plugin.getName();
+		this.pluginName = getNameSafely(plugin);
 		this.prefix = prefix;
 		this.supportURL = supportURL;
 		this.maxErrorCount = maxErrorCount;
 		this.logger = logger;
+	}
+
+	private String getNameSafely(Plugin plugin) {
+		try {
+			return plugin.getName();
+		} catch (LinkageError e) {
+			return "ProtocolLib";
+		}
 	}
 
 	// Attempt to get the logger.
@@ -370,12 +379,16 @@ public class DetailedErrorReporter implements ErrorReporter {
 			writer.println("Version:");
 			writer.println(addPrefix(plugin.toString(), SECOND_LEVEL_PREFIX));
 		}
-		
+
+		// And java version
+		writer.println("Java Version:");
+		writer.println(addPrefix(System.getProperty("java.version"), SECOND_LEVEL_PREFIX));
+
 		// Add the server version too
 		if (Bukkit.getServer() != null) {
 			writer.println("Server:");
 			writer.println(addPrefix(Bukkit.getServer().getVersion(), SECOND_LEVEL_PREFIX));
-			
+
 			// Inform of this occurrence
 			if (ERROR_PERMISSION != null) {
 				Bukkit.getServer().broadcast(
@@ -442,7 +455,7 @@ public class DetailedErrorReporter implements ErrorReporter {
 	 * @param value - object to convert.
 	 * @return String representation.
 	 */
-	protected String getStringDescription(Object value) {
+	public static String getStringDescription(Object value) {
 		// We can't only rely on toString.
 		if (value == null) {
 			return "[NULL]";
@@ -474,7 +487,7 @@ public class DetailedErrorReporter implements ErrorReporter {
 	 * @param test - the object to test.
 	 * @return TRUE if this object is simple enough to simply be printed, FALSE othewise.
 	 */
-	protected boolean isSimpleType(Object test) {
+	protected static boolean isSimpleType(Object test) {
 		return test instanceof String || Primitives.isWrapperType(test.getClass());
 	}
 	

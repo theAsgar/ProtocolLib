@@ -1,6 +1,6 @@
 /**
  *  ProtocolLib - Bukkit server library that allows access to the Minecraft protocol.
- *  Copyright (C) 2012 Kristian S. Stangeland
+ *  Copyright (C) 2015 dmulloy2
  *
  *  This program is free software; you can redistribute it and/or modify it under the terms of the
  *  GNU General Public License as published by the Free Software Foundation; either version 2 of
@@ -18,6 +18,8 @@ package com.comphenix.protocol.wrappers;
 
 import java.lang.reflect.Constructor;
 
+import org.bukkit.Location;
+import org.bukkit.World;
 import org.bukkit.util.Vector;
 
 import com.comphenix.protocol.reflect.EquivalentConverter;
@@ -50,6 +52,9 @@ public class BlockPosition {
 
 	/**
 	 * Construct an immutable 3D vector.
+	 * @param x - x coordinate
+	 * @param y - y coordinate
+	 * @param z - z coordinate
 	 */
 	public BlockPosition(int x, int y, int z) {
 		this.x = x;
@@ -75,6 +80,15 @@ public class BlockPosition {
 	 */
 	public Vector toVector() {
 		return new Vector(x, y, z);
+	}
+	
+	/**
+	 * Convert this instance to an equivalent Location.
+	 * @param world World for the location
+	 * @return Location
+	 */
+	public Location toLocation(World world) {
+		return new Location(world, x, y, z);
 	}
 	
 	/**

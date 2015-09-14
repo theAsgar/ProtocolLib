@@ -6,9 +6,9 @@ import static org.junit.Assert.assertTrue;
 
 import java.util.List;
 
-import net.minecraft.server.v1_8_R1.AttributeModifier;
-import net.minecraft.server.v1_8_R1.AttributeSnapshot;
-import net.minecraft.server.v1_8_R1.PacketPlayOutUpdateAttributes;
+import net.minecraft.server.v1_8_R3.AttributeModifier;
+import net.minecraft.server.v1_8_R3.PacketPlayOutUpdateAttributes;
+import net.minecraft.server.v1_8_R3.PacketPlayOutUpdateAttributes.AttributeSnapshot;
 
 import org.junit.Before;
 import org.junit.BeforeClass;
@@ -26,20 +26,20 @@ public class WrappedAttributeTest {
 	private WrappedAttribute attribute;
 	
 	@BeforeClass
-	public static void initializeBukkit() throws IllegalAccessException {
+	public static void initializeBukkit() {
 		BukkitInitialization.initializePackage();
 	}
 
 	@Before
 	public void setUp() {
 		// Create a couple of modifiers
-		doubleModifier = 
+		doubleModifier =
 			WrappedAttributeModifier.newBuilder().
 			name("Double Damage").
 			amount(1).
 			operation(Operation.ADD_PERCENTAGE).
 			build();
-		constantModifier = 
+		constantModifier =
 			WrappedAttributeModifier.newBuilder().
 			name("Damage Bonus").
 			amount(5).
@@ -84,11 +84,11 @@ public class WrappedAttributeTest {
 		for (WrappedAttributeModifier wrapper : attribute.getModifiers()) {
 			modifiers.add((AttributeModifier) wrapper.getHandle());
 		}
-		return new AttributeSnapshot(
-			(PacketPlayOutUpdateAttributes) attribute.getParentPacket().getHandle(), 
-			attribute.getAttributeKey(), attribute.getBaseValue(), modifiers);
+
+		PacketPlayOutUpdateAttributes accessor = new PacketPlayOutUpdateAttributes();
+		return accessor.new AttributeSnapshot(attribute.getAttributeKey(), attribute.getBaseValue(), modifiers);
 	}
-	
+
 	private AttributeModifier getModifierCopy(WrappedAttributeModifier modifier) {
 		return new AttributeModifier(modifier.getUUID(), modifier.getName(), modifier.getAmount(), modifier.getOperation().getId());
 	}

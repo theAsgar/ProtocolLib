@@ -2,23 +2,58 @@ package com.comphenix.protocol.wrappers;
 
 import java.security.PublicKey;
 
+import com.comphenix.protocol.reflect.accessors.Accessors;
+import com.comphenix.protocol.reflect.accessors.ConstructorAccessor;
+import com.comphenix.protocol.reflect.accessors.MethodAccessor;
 import com.google.common.base.Objects;
-import com.mojang.authlib.properties.Property;
 
 /**
  * Represents a wrapper over a signed property.
  * @author Kristian
  */
 public class WrappedSignedProperty extends AbstractWrapper {
+	private static final String CLASS_NAME = "com.mojang.authlib.properties.Property";
+	private static final String UTIL_PACKAGE = "net.minecraft.util.";
+
+	private static Class<?> PROPERTY;
+	private static ConstructorAccessor CONSTRUCTOR;
+	private static MethodAccessor GET_NAME;
+	private static MethodAccessor GET_SIGNATURE;
+	private static MethodAccessor GET_VALUE;
+	private static MethodAccessor HAS_SIGNATURE;
+	private static MethodAccessor IS_SIGNATURE_VALID;
+
+	static {
+		try {
+			PROPERTY = Class.forName(CLASS_NAME);
+		} catch (ClassNotFoundException ex) {
+			try {
+				PROPERTY = Class.forName(UTIL_PACKAGE + CLASS_NAME);
+			} catch (ClassNotFoundException ex1) {
+				throw new RuntimeException("Failed to obtain Property class.", ex1);
+			}
+		}
+
+		try {
+			CONSTRUCTOR = Accessors.getConstructorAccessor(PROPERTY, String.class, String.class, String.class);
+			GET_NAME = Accessors.getMethodAccessor(PROPERTY, "getName");
+			GET_SIGNATURE = Accessors.getMethodAccessor(PROPERTY, "getSignature");
+			GET_VALUE = Accessors.getMethodAccessor(PROPERTY, "getValue");
+			HAS_SIGNATURE = Accessors.getMethodAccessor(PROPERTY, "hasSignature");
+			IS_SIGNATURE_VALID = Accessors.getMethodAccessor(PROPERTY, "isSignatureValid", PublicKey.class);
+		} catch (Throwable ex) {
+			throw new RuntimeException("Failed to obtain methods for Property.", ex);
+		}
+	}
+	
 	/**
 	 * Construct a new wrapped signed property from the given values.
 	 * @param name - the name of the property.
 	 * @param value - the value of the property.
 	 * @param signature - the BASE64-encoded signature of the value.
-	 * @return The signed property.
 	 */
 	public WrappedSignedProperty(String name, String value, String signature) {
-		this(new Property(name, value, signature));
+		this(CONSTRUCTOR.invoke(name, value, signature));
 	}
 	
 	/**
@@ -26,7 +61,7 @@ public class WrappedSignedProperty extends AbstractWrapper {
 	 * @param handle - the handle.
 	 */
 	private WrappedSignedProperty(Object handle) {
-		super(Property.class);
+		super(PROPERTY);
 		setHandle(handle);
 	}
 	
@@ -49,21 +84,13 @@ public class WrappedSignedProperty extends AbstractWrapper {
 	public static WrappedSignedProperty fromValues(String name, String value, String signature) {
 		return new WrappedSignedProperty(name, value, signature);
 	}
-	
-	/**
-	 * Retrieve the underlying signed property.
-	 * @return The GameProfile.
-	 */
-	private Property getProfile() {
-		return (Property) handle;
-	}
 
 	/**
 	 * Retrieve the name of the underlying property, such as "textures".
 	 * @return Name of the property.
 	 */
 	public String getName() {
-		return getProfile().getName();
+		return (String) GET_NAME.invoke(handle);
 	}
 
 	/**
@@ -71,7 +98,7 @@ public class WrappedSignedProperty extends AbstractWrapper {
 	 * @return The signature of the property.
 	 */
 	public String getSignature() {
-		return getProfile().getSignature();
+		return (String) GET_SIGNATURE.invoke(handle);
 	}
 
 	/**
@@ -79,7 +106,7 @@ public class WrappedSignedProperty extends AbstractWrapper {
 	 * @return  The value of the property.
 	 */
 	public String getValue() {
-		return getProfile().getValue();
+		return (String) GET_VALUE.invoke(handle);
 	}
 
 	/**
@@ -87,7 +114,7 @@ public class WrappedSignedProperty extends AbstractWrapper {
 	 * @return TRUE if it does, FALSE otherwise.
 	 */
 	public boolean hasSignature() {
-		return getProfile().hasSignature();
+		return (Boolean) HAS_SIGNATURE.invoke(handle);
 	}
 	
 	/**
@@ -96,7 +123,7 @@ public class WrappedSignedProperty extends AbstractWrapper {
 	 * @return TRUE if it is, FALSE otherwise.
 	 */
 	public boolean isSignatureValid(PublicKey key) {
-		return getProfile().isSignatureValid(key);
+		return (Boolean) IS_SIGNATURE_VALID.invoke(handle, key);
 	}
 
 	@Override

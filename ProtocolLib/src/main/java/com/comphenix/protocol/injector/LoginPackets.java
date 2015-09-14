@@ -28,28 +28,30 @@ class LoginPackets {
 		serverSide.add(Packets.Server.KEY_RESPONSE);
 		clientSide.add(Packets.Client.CLIENT_COMMAND);
 		serverSide.add(Packets.Server.LOGIN);
-		
+
 		// List ping
 		clientSide.add(Packets.Client.GET_INFO);
-		
+
 		// In 1.6.2, Minecraft started sending CUSTOM_PAYLOAD in the server list protocol
-		if (version.compareTo(MinecraftVersion.HORSE_UPDATE) >= 0) {
+		// MCPC+/Cauldron contains Forge, which uses CUSTOM_PAYLOAD during login
+		if (version.isAtLeast(MinecraftVersion.HORSE_UPDATE) || isCauldronOrMCPC()) {
 			clientSide.add(Packets.Client.CUSTOM_PAYLOAD);
 		}
+
+		if (isCauldronOrMCPC()) {
+			serverSide.add(Packets.Server.CUSTOM_PAYLOAD);
+		}
+
 		serverSide.add(Packets.Server.KICK_DISCONNECT);
-		
-		// MCPC++ contains Forge, which uses packet 250 during login
-		if (isMCPC()) {
-			clientSide.add(Packets.Client.CUSTOM_PAYLOAD);
-		}
 	}
-	
+
 	/**
-	 * Determine if we are runnign MCPC.
+	 * Determine if we are running MCPC or Cauldron.
 	 * @return TRUE if we are, FALSE otherwise.
 	 */
-	private static boolean isMCPC() {
-		return Bukkit.getServer().getVersion().contains("MCPC-Plus");
+	private static boolean isCauldronOrMCPC() {
+		String version = Bukkit.getServer().getVersion();
+		return version.contains("MCPC") || version.contains("Cauldron");
 	}
 	
 	/**

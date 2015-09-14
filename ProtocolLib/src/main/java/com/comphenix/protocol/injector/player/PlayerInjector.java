@@ -2,16 +2,16 @@
  *  ProtocolLib - Bukkit server library that allows access to the Minecraft protocol.
  *  Copyright (C) 2012 Kristian S. Stangeland
  *
- *  This program is free software; you can redistribute it and/or modify it under the terms of the 
- *  GNU General Public License as published by the Free Software Foundation; either version 2 of 
+ *  This program is free software; you can redistribute it and/or modify it under the terms of the
+ *  GNU General Public License as published by the Free Software Foundation; either version 2 of
  *  the License, or (at your option) any later version.
  *
- *  This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; 
- *  without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. 
+ *  This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
+ *  without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
  *  See the GNU General Public License for more details.
  *
- *  You should have received a copy of the GNU General Public License along with this program; 
- *  if not, write to the Free Software Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 
+ *  You should have received a copy of the GNU General Public License along with this program;
+ *  if not, write to the Free Software Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA
  *  02111-1307 USA
  */
 
@@ -62,7 +62,7 @@ public abstract class PlayerInjector implements SocketInjector {
 	public static final ReportType REPORT_CANNOT_CLOSE_SOCKET = new ReportType("Unable to close socket.");
 	public static final ReportType REPORT_ACCESS_DENIED_CLOSE_SOCKET = new ReportType("Insufficient permissions. Cannot close socket.");
 	
-	public static final ReportType REPORT_DETECTED_CUSTOM_SERVER_HANDLER = 
+	public static final ReportType REPORT_DETECTED_CUSTOM_SERVER_HANDLER =
 			new ReportType("Detected server handler proxy type by another plugin. Conflict may occur!");
 	public static final ReportType REPORT_CANNOT_PROXY_SERVER_HANDLER = new ReportType("Unable to load server handler from proxy type.");
 	
@@ -128,7 +128,7 @@ public abstract class PlayerInjector implements SocketInjector {
 	
 	// Previous markers
 	protected Map<Object, NetworkMarker> queuedMarkers = new MapMaker().weakKeys().makeMap();
-	protected InterceptWritePacket writePacketInterceptor; 
+	protected InterceptWritePacket writePacketInterceptor;
 	
 	// Whether or not the injector has been cleaned
 	private boolean clean;
@@ -137,7 +137,7 @@ public abstract class PlayerInjector implements SocketInjector {
 	boolean updateOnLogin;
 	volatile Player updatedPlayer;
 	
-	public PlayerInjector(ErrorReporter reporter, Player player, ListenerInvoker invoker) throws IllegalAccessException {
+	public PlayerInjector(ErrorReporter reporter, Player player, ListenerInvoker invoker) {
 		this.reporter = reporter;
 		this.player = player;
 		this.invoker = invoker;
@@ -156,6 +156,7 @@ public abstract class PlayerInjector implements SocketInjector {
 	
 	/**
 	 * Initialize all fields for this player injector, if it hasn't already.
+	 * @param injectionSource - Injection source
 	 * @throws IllegalAccessException An error has occured.
 	 */
 	public void initialize(Object injectionSource) throws IllegalAccessException {
@@ -167,7 +168,7 @@ public abstract class PlayerInjector implements SocketInjector {
 			initializePlayer((Player) injectionSource);
 		else if (MinecraftReflection.isLoginHandler(injectionSource))
 			initializeLogin(injectionSource);
-		else 
+		else
 			throw new IllegalArgumentException("Cannot initialize a player hook using a " + injectionSource.getClass().getName());
 	}
 	
@@ -176,7 +177,7 @@ public abstract class PlayerInjector implements SocketInjector {
 	 * @param player - the player to hook.
 	 */
 	public void initializePlayer(Player player) {
-		Object notchEntity = getEntityPlayer((Player) player);
+		Object notchEntity = getEntityPlayer(player);
 		
 		// Save the player too
 		this.player = player;
@@ -188,7 +189,7 @@ public abstract class PlayerInjector implements SocketInjector {
 			// Retrieve the server handler
 			if (serverHandlerField == null) {
 				serverHandlerField = FuzzyReflection.fromObject(notchEntity).getFieldByType(
-									  "NetServerHandler", MinecraftReflection.getNetServerHandlerClass());
+									  "NetServerHandler", MinecraftReflection.getPlayerConnectionClass());
 				proxyServerField = getProxyField(notchEntity, serverHandlerField);
 			}
 			
@@ -196,8 +197,8 @@ public abstract class PlayerInjector implements SocketInjector {
 			serverHandlerRef = new VolatileField(serverHandlerField, notchEntity);
 			serverHandler = serverHandlerRef.getValue();
 
-			// Next, get the network manager 
-			if (networkManagerField == null) 
+			// Next, get the network manager
+			if (networkManagerField == null)
 				networkManagerField = FuzzyReflection.fromObject(serverHandler).getFieldByType(
 									   "networkManager", MinecraftReflection.getNetworkManagerClass());
 			initializeNetworkManager(networkManagerField, serverHandler);
@@ -212,7 +213,7 @@ public abstract class PlayerInjector implements SocketInjector {
 		if (!hasInitialized) {
 			// Just in case
 			if (!MinecraftReflection.isLoginHandler(netLoginHandler))
-				throw new IllegalArgumentException("netLoginHandler (" + netLoginHandler + ") is not a " + 
+				throw new IllegalArgumentException("netLoginHandler (" + netLoginHandler + ") is not a " +
 							MinecraftReflection.getNetLoginHandlerName());
 			
 			hasInitialized = true;
@@ -402,7 +403,7 @@ public abstract class PlayerInjector implements SocketInjector {
 					FuzzyReflection reflection = FuzzyReflection.fromObject(currentHandler, true);
 					
 					// It might be
-					return reflection.getFieldByType("NetServerHandler", MinecraftReflection.getNetServerHandlerClass());
+					return reflection.getFieldByType("NetServerHandler", MinecraftReflection.getPlayerConnectionClass());
 					
 				} catch (RuntimeException e) {
 					// Damn
@@ -428,7 +429,7 @@ public abstract class PlayerInjector implements SocketInjector {
 		Class<?> clazz = obj.getClass();
 		
 		return MinecraftReflection.getNetLoginHandlerClass().equals(clazz) ||
-			   MinecraftReflection.getNetServerHandlerClass().equals(clazz);
+			   MinecraftReflection.getPlayerConnectionClass().equals(clazz);
 	}
 	
 	/**
@@ -442,8 +443,10 @@ public abstract class PlayerInjector implements SocketInjector {
 	
 	/**
 	 * Retrieves the current net handler for this player.
+	 * @param refresh - Whether or not to refresh
 	 * @return Current net handler.
 	 * @throws IllegalAccessException Unable to find or retrieve net handler.
+	 * @return The current net handler for this player
 	 */
 	protected Object getNetHandler(boolean refresh) throws IllegalAccessException {
 		// What a mess
@@ -562,6 +565,7 @@ public abstract class PlayerInjector implements SocketInjector {
 	
 	/**
 	 * Determine if this inject method can even be attempted.
+	 * @param state - Game phase
 	 * @return TRUE if can be attempted, though possibly with failure, FALSE otherwise.
 	 */
 	public abstract boolean canInject(GamePhase state);
@@ -601,7 +605,7 @@ public abstract class PlayerInjector implements SocketInjector {
 						final Object handler = getNetHandler(true);
 						
 						// Is this a net server class?
-						if (MinecraftReflection.getNetServerHandlerClass().isAssignableFrom(handler.getClass())) {
+						if (MinecraftReflection.getPlayerConnectionClass().isAssignableFrom(handler.getClass())) {
 							setUpdatedPlayer(
 								(Player) MinecraftReflection.getBukkitEntity(getEntityPlayer(handler))
 							);
@@ -739,7 +743,7 @@ public abstract class PlayerInjector implements SocketInjector {
 	/**
 	 * Indicates that a player's NetServerHandler or PlayerConnection was NULL.
 	 * <p>
-	 * This is usually because the player has just logged out, or due to it being a "fake" player in MCPC++.
+	 * This is usually because the player has just logged out, or due to it being a "fake" player in MCPC+/Cauldron.
 	 * @author Kristian
 	 */
 	public static class ServerHandlerNull extends IllegalAccessError {

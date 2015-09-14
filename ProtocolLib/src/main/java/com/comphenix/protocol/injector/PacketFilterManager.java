@@ -17,8 +17,6 @@
 
 package com.comphenix.protocol.injector;
 
-import io.netty.channel.Channel;
-
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.Collections;
@@ -56,6 +54,9 @@ import com.comphenix.protocol.PacketType.Sender;
 import com.comphenix.protocol.ProtocolManager;
 import com.comphenix.protocol.async.AsyncFilterManager;
 import com.comphenix.protocol.async.AsyncMarker;
+import com.comphenix.protocol.compat.netty.Netty;
+import com.comphenix.protocol.compat.netty.ProtocolInjector;
+import com.comphenix.protocol.compat.netty.WrappedChannel;
 import com.comphenix.protocol.error.ErrorReporter;
 import com.comphenix.protocol.error.Report;
 import com.comphenix.protocol.error.ReportType;
@@ -68,7 +69,6 @@ import com.comphenix.protocol.events.PacketAdapter;
 import com.comphenix.protocol.events.PacketContainer;
 import com.comphenix.protocol.events.PacketEvent;
 import com.comphenix.protocol.events.PacketListener;
-import com.comphenix.protocol.injector.netty.NettyProtocolInjector;
 import com.comphenix.protocol.injector.netty.WirePacket;
 import com.comphenix.protocol.injector.packet.InterceptWritePacket;
 import com.comphenix.protocol.injector.packet.PacketInjector;
@@ -81,10 +81,10 @@ import com.comphenix.protocol.injector.player.PlayerInjectorBuilder;
 import com.comphenix.protocol.injector.spigot.SpigotPacketInjector;
 import com.comphenix.protocol.reflect.FieldAccessException;
 import com.comphenix.protocol.reflect.FuzzyReflection;
-import com.comphenix.protocol.utility.BukkitUtil;
 import com.comphenix.protocol.utility.EnhancerFactory;
 import com.comphenix.protocol.utility.MinecraftReflection;
 import com.comphenix.protocol.utility.MinecraftVersion;
+import com.comphenix.protocol.utility.Util;
 import com.google.common.base.Objects;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Predicate;
@@ -205,7 +205,7 @@ public final class PacketFilterManager implements ProtocolManager, ListenerInvok
 	private SpigotPacketInjector spigotInjector;
 
 	// Netty injector (for 1.7.2)
-	private NettyProtocolInjector nettyInjector;
+	private ProtocolInjector nettyInjector;
 
 	// Plugin verifier
 	private PluginVerifier pluginVerifier;
@@ -223,7 +223,8 @@ public final class PacketFilterManager implements ProtocolManager, ListenerInvok
 	private boolean debug;
 
 	/**
-	 * Only create instances of this class if protocol lib is disabled.
+	 * Only create instances of this class if ProtocolLib is disabled.
+	 * @param builder - PacketFilterBuilder
 	 */
 	public PacketFilterManager(PacketFilterBuilder builder) {
 		// Used to determine if injection is needed
@@ -272,7 +273,7 @@ public final class PacketFilterManager implements ProtocolManager, ListenerInvok
 
 		// Use the correct injection type
 		if (MinecraftReflection.isUsingNetty()) {
-			this.nettyInjector = new NettyProtocolInjector(builder.getLibrary(), this, reporter);
+			this.nettyInjector = Netty.getProtocolInjector(builder.getLibrary(), this, reporter);
 			this.playerInjection = nettyInjector.getPlayerInjector();
 			this.packetInjector = nettyInjector.getPacketInjector();
 
@@ -441,7 +442,7 @@ public final class PacketFilterManager implements ProtocolManager, ListenerInvok
 				playerInjection.checkListener(listener);
 			}
 			if (hasSending)
-				incrementPhases(processPhase(sending, ConnectionSide.SERVER_SIDE));
+				incrementPhases(processPhase(sending));
 
 			// Handle receivers after senders
 			if (hasReceiving) {
@@ -450,7 +451,7 @@ public final class PacketFilterManager implements ProtocolManager, ListenerInvok
 				enablePacketFilters(listener, receiving.getTypes());
 			}
 			if (hasReceiving)
-				incrementPhases(processPhase(receiving, ConnectionSide.CLIENT_SIDE));
+				incrementPhases(processPhase(receiving));
 
 			// Inform our injected hooks
 			packetListeners.add(listener);
@@ -458,7 +459,7 @@ public final class PacketFilterManager implements ProtocolManager, ListenerInvok
 		}
 	}
 
-	private GamePhase processPhase(ListeningWhitelist whitelist, ConnectionSide side) {
+	private GamePhase processPhase(ListeningWhitelist whitelist) {
 		// Determine if this is a login packet, ensuring that gamephase detection is enabled
 		if (!whitelist.getGamePhase().hasLogin() &&
 			!whitelist.getOptions().contains(ListenerOptions.DISABLE_GAMEPHASE_DETECTION)) {
@@ -509,7 +510,7 @@ public final class PacketFilterManager implements ProtocolManager, ListenerInvok
 					unhookTask.cancel();
 				else
 					// Inject our hook into already existing players
-					initializePlayers(BukkitUtil.getOnlinePlayers());
+					initializePlayers(Util.getOnlinePlayers());
 			}
 		}
 	}
@@ -530,7 +531,7 @@ public final class PacketFilterManager implements ProtocolManager, ListenerInvok
 					@Override
 					public void run() {
 						// Inject our hook into already existing players
-						uninitializePlayers(BukkitUtil.getOnlinePlayers());
+						uninitializePlayers(Util.getOnlinePlayers());
 					}
 				});
 			}
@@ -571,11 +572,11 @@ public final class PacketFilterManager implements ProtocolManager, ListenerInvok
 		// Remove listeners and phases
 		if (sending != null && sending.isEnabled()) {
 			sendingRemoved = sendingListeners.removeListener(listener, sending);
-			decrementPhases(processPhase(sending, ConnectionSide.SERVER_SIDE));
+			decrementPhases(processPhase(sending));
 		}
 		if (receiving != null && receiving.isEnabled()) {
 			receivingRemoved = recievedListeners.removeListener(listener, receiving);
-			decrementPhases(processPhase(receiving, ConnectionSide.CLIENT_SIDE));
+			decrementPhases(processPhase(receiving));
 		}
 
 		// Remove hooks, if needed
@@ -710,7 +711,7 @@ public final class PacketFilterManager implements ProtocolManager, ListenerInvok
 	@Override
 	public void broadcastServerPacket(PacketContainer packet) {
 		Preconditions.checkNotNull(packet, "packet cannot be NULL.");
-		broadcastServerPacket(packet, BukkitUtil.getOnlinePlayers());
+		broadcastServerPacket(packet, Util.getOnlinePlayers());
 	}
 
 	@Override
@@ -736,7 +737,7 @@ public final class PacketFilterManager implements ProtocolManager, ListenerInvok
 			Location recycle = origin.clone();
 
 			// Only broadcast the packet to nearby players
-			for (Player player : server.getOnlinePlayers()) {
+			for (Player player : Util.getOnlinePlayers()) {
 				if (world.equals(player.getWorld()) &&
 				    getDistanceSquared(origin, recycle, player) <= maxDistance) {
 
@@ -844,7 +845,7 @@ public final class PacketFilterManager implements ProtocolManager, ListenerInvok
 
 	@Override
 	public void sendWirePacket(Player receiver, WirePacket packet) throws InvocationTargetException {
-		Channel channel = playerInjection.getChannel(receiver);
+		WrappedChannel channel = playerInjection.getChannel(receiver);
 		if (channel == null) {
 			throw new InvocationTargetException(new NullPointerException(), "Failed to obtain channel for " + receiver.getName());
 		}
@@ -1008,6 +1009,7 @@ public final class PacketFilterManager implements ProtocolManager, ListenerInvok
 
 	/**
 	 * Register this protocol manager on Bukkit.
+	 * 
 	 * @param manager - Bukkit plugin manager that provides player join/leave events.
 	 * @param plugin - the parent plugin.
 	 */
@@ -1020,26 +1022,31 @@ public final class PacketFilterManager implements ProtocolManager, ListenerInvok
 
 		try {
 			manager.registerEvents(new Listener() {
+
 				@EventHandler(priority = EventPriority.LOWEST)
-			    public void onPlayerLogin(PlayerLoginEvent event) {
+				public void onPlayerLogin(PlayerLoginEvent event) {
 					PacketFilterManager.this.onPlayerLogin(event);
 				}
+
 				@EventHandler(priority = EventPriority.LOWEST)
-			    public void onPrePlayerJoin(PlayerJoinEvent event) {
+				public void onPrePlayerJoin(PlayerJoinEvent event) {
 					PacketFilterManager.this.onPrePlayerJoin(event);
 				}
+
 				@EventHandler(priority = EventPriority.MONITOR)
-			    public void onPlayerJoin(PlayerJoinEvent event) {
+				public void onPlayerJoin(PlayerJoinEvent event) {
 					PacketFilterManager.this.onPlayerJoin(event);
-			    }
+				}
+
 				@EventHandler(priority = EventPriority.MONITOR)
-			    public void onPlayerQuit(PlayerQuitEvent event) {
+				public void onPlayerQuit(PlayerQuitEvent event) {
 					PacketFilterManager.this.onPlayerQuit(event);
-			    }
+				}
+
 				@EventHandler(priority = EventPriority.MONITOR)
-			    public void onPluginDisabled(PluginDisableEvent event) {
+				public void onPluginDisabled(PluginDisableEvent event) {
 					PacketFilterManager.this.onPluginDisabled(event, plugin);
-			    }
+				}
 
 			}, plugin);
 
@@ -1063,7 +1070,7 @@ public final class PacketFilterManager implements ProtocolManager, ListenerInvok
 			playerInjection.uninjectPlayer(event.getPlayer().getAddress());
 			playerInjection.injectPlayer(event.getPlayer(), ConflictStrategy.OVERRIDE);
 		} catch (ServerHandlerNull e) {
-			// Caused by logged out players, or fake login events in MCPC++. Ignore it.
+			// Caused by logged out players, or fake login events in MCPC+/Cauldron. Ignore it.
 		} catch (Exception e) {
 			reporter.reportDetailed(PacketFilterManager.this,
 					Report.newBuilder(REPORT_CANNOT_INJECT_PLAYER).callerParam(event).error(e)

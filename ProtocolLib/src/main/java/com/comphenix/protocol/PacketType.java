@@ -523,6 +523,7 @@ public class PacketType implements Serializable, Comparable<PacketType> {
 	private final int currentId;
 	private final int legacyId;
 	private final MinecraftVersion version;
+	private final boolean dynamic;
 
 	/**
 	 * Retrieve the current packet/legacy lookup.
@@ -602,7 +603,6 @@ public class PacketType implements Serializable, Comparable<PacketType> {
 	/**
 	 * Determine if the given legacy packet exists.
 	 * @param packetId - the legacy packet ID.
-	 * @param preference - the sender preference.
 	 * @return TRUE if it does, FALSE otherwise.
 	 */
 	public static boolean hasLegacy(int packetId) {
@@ -679,7 +679,7 @@ public class PacketType implements Serializable, Comparable<PacketType> {
 		PacketType type = getLookup().getFromCurrent(protocol, sender, packetId);
 
 		if (type == null) {
-			type = new PacketType(protocol, sender, packetId, legacyId);
+			type = new PacketType(protocol, sender, packetId, legacyId, PROTOCOL_VERSION, true);
 
 			// Many may be scheduled, but only the first will be executed
 			scheduleRegister(type, "Dynamic-" + UUID.randomUUID().toString());
@@ -798,17 +798,32 @@ public class PacketType implements Serializable, Comparable<PacketType> {
 	 * @param version - the version of the current ID.
 	 */
 	public PacketType(Protocol protocol, Sender sender, int currentId, int legacyId, MinecraftVersion version) {
+		this(protocol, sender, currentId, legacyId, version, false);
+	}
+
+	/**
+	 * Construct a new packet type.
+	 * @param protocol - the current protocol.
+	 * @param sender - client or server.
+	 * @param currentId - the current packet ID.
+	 * @param legacyId - the legacy packet ID.
+	 * @param version - the version of the current ID.
+	 * @param dynamic - if this type was created dynamically.
+	 */
+	public PacketType(Protocol protocol, Sender sender, int currentId, int legacyId, MinecraftVersion version, boolean dynamic) {
 		this.protocol = Preconditions.checkNotNull(protocol, "protocol cannot be NULL");
 		this.sender = Preconditions.checkNotNull(sender, "sender cannot be NULL");
 		this.currentId = currentId;
 		this.legacyId = legacyId;
 		this.version = version;
+		this.dynamic = dynamic;
 	}
 
 	/**
 	 * Construct a legacy packet type.
 	 * @param sender - client or server.
 	 * @param legacyId - the legacy packet ID.
+	 * @return Legacy packet type
 	 */
 	public static PacketType newLegacy(Sender sender, int legacyId) {
 		return new PacketType(Protocol.LEGACY, sender, PacketType.UNKNOWN_PACKET, legacyId, MinecraftVersion.WORLD_UPDATE);
@@ -902,6 +917,14 @@ public class PacketType implements Serializable, Comparable<PacketType> {
 	 */
 	public int getLegacyId() {
 		return legacyId;
+	}
+
+	/**
+	 * Whether or not this packet was dynamically created (ie we don't have it registered)
+	 * @return True if dnyamic, false if not.
+	 */
+	public boolean isDynamic() {
+		return dynamic;
 	}
 
 	@Override

@@ -2,16 +2,16 @@
  *  ProtocolLib - Bukkit server library that allows access to the Minecraft protocol.
  *  Copyright (C) 2012 Kristian S. Stangeland
  *
- *  This program is free software; you can redistribute it and/or modify it under the terms of the 
- *  GNU General Public License as published by the Free Software Foundation; either version 2 of 
+ *  This program is free software; you can redistribute it and/or modify it under the terms of the
+ *  GNU General Public License as published by the Free Software Foundation; either version 2 of
  *  the License, or (at your option) any later version.
  *
- *  This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; 
- *  without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. 
+ *  This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
+ *  without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
  *  See the GNU General Public License for more details.
  *
- *  You should have received a copy of the GNU General Public License along with this program; 
- *  if not, write to the Free Software Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 
+ *  You should have received a copy of the GNU General Public License along with this program;
+ *  if not, write to the Free Software Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA
  *  02111-1307 USA
  */
 
@@ -94,6 +94,8 @@ public class NbtFactory {
 	 * Get a NBT wrapper from a NBT base.
 	 * <p>
 	 * This may clone the content if the NbtBase is not a NbtWrapper.
+	 * 
+	 * @param <T> Type
 	 * @param base - the base class.
 	 * @return A NBT wrapper.
 	 */
@@ -130,8 +132,8 @@ public class NbtFactory {
 	/**
 	 * Set the NBT compound tag of a given item stack.
 	 * <p>
-	 * The item stack must be a wrapper for a CraftItemStack. Use 
-	 * {@link MinecraftReflection#getBukkitItemStack(ItemStack)} if not.
+	 * The item stack must be a wrapper for a CraftItemStack. Use
+	 * {@link MinecraftReflection#getCraftItemStack(ItemStack)} if not.
 	 * @param stack - the item stack, cannot be air.
 	 * @param compound - the new NBT compound, or NULL to remove it.
 	 * @throws IllegalArgumentException If the stack is not a CraftItemStack, or it represents air.
@@ -148,8 +150,8 @@ public class NbtFactory {
 	 * auxillary data such as enchanting, name and lore is stored. It doesn't include the items
 	 * material, damage value or count.
 	 * <p>
-	 * The item stack must be a wrapper for a CraftItemStack. Use 
-	 * {@link MinecraftReflection#getBukkitItemStack(ItemStack)} if not.
+	 * The item stack must be a wrapper for a CraftItemStack. Use
+	 * {@link MinecraftReflection#getCraftItemStack(ItemStack)} if not.
 	 * @param stack - the item stack.
 	 * @return A wrapper for its NBT tag.
 	 */
@@ -189,7 +191,7 @@ public class NbtFactory {
 	        // Would be nice to avoid this, but alas - we have to use Java 6
 	        if      (input != null) Closeables.close(input, swallow);
 	        else if (stream != null) Closeables.close(stream, swallow);
-	    }       
+	    }
 	}
 	
 	/**
@@ -214,12 +216,12 @@ public class NbtFactory {
 	        // Note the order
 	        if      (output != null) Closeables.close(output, swallow);
 	        else if (stream != null) Closeables.close(stream, swallow);
-	    }       
+	    }
 	}
 	
 	/**
 	 * Retrieve the NBT tile entity that represents the given block.
-	 * @param state - the block state.
+	 * @param block - the block.
 	 * @return The NBT compound, or NULL if the state doesn't have a tile entity.
 	 */
 	public static NbtCompound readBlockState(Block block) {
@@ -274,7 +276,7 @@ public class NbtFactory {
 		// Use the first and best NBT tag
 		return itemStackModifier.
 				withTarget(nmsStack).
-				withType(MinecraftReflection.getNBTBaseClass(), 
+				withType(MinecraftReflection.getNBTBaseClass(),
 						 BukkitConverters.getNbtConverter());
 	}
 	
@@ -282,6 +284,7 @@ public class NbtFactory {
 	 * Initialize a NBT wrapper.
 	 * <p>
 	 * Use {@link #fromNMS(Object, String)} instead.
+	 * @param <T> Type
 	 * @param handle - the underlying net.minecraft.server object to wrap.
 	 * @return A NBT wrapper.
 	 */
@@ -301,6 +304,7 @@ public class NbtFactory {
 	
 	/**
 	 * Initialize a NBT wrapper with a name.
+	 * @param <T> Type
 	 * @param name - the name of the tag, or NULL if not valid.
 	 * @param handle - the underlying net.minecraft.server object to wrap.
 	 * @return A NBT wrapper.
@@ -332,7 +336,7 @@ public class NbtFactory {
 	/**
 	 * Constructs a NBT tag of type string.
 	 * @param name - name of the tag.
-	 * @param value - value of the tag. 
+	 * @param value - value of the tag.
 	 * @return The constructed NBT tag.
 	 */
 	public static NbtBase<String> of(String name, String value) {
@@ -342,7 +346,7 @@ public class NbtFactory {
 	/**
 	 * Constructs a NBT tag of type byte.
 	 * @param name - name of the tag.
-	 * @param value - value of the tag. 
+	 * @param value - value of the tag.
 	 * @return The constructed NBT tag.
 	 */
 	public static NbtBase<Byte> of(String name, byte value) {
@@ -352,7 +356,7 @@ public class NbtFactory {
 	/**
 	 * Constructs a NBT tag of type short.
 	 * @param name - name of the tag.
-	 * @param value - value of the tag. 
+	 * @param value - value of the tag.
 	 * @return The constructed NBT tag.
 	 */
 	public static NbtBase<Short> of(String name, short value) {
@@ -362,7 +366,7 @@ public class NbtFactory {
 	/**
 	 * Constructs a NBT tag of type int.
 	 * @param name - name of the tag.
-	 * @param value - value of the tag. 
+	 * @param value - value of the tag.
 	 * @return The constructed NBT tag.
 	 */
 	public static NbtBase<Integer> of(String name, int value) {
@@ -372,7 +376,7 @@ public class NbtFactory {
 	/**
 	 * Constructs a NBT tag of type long.
 	 * @param name - name of the tag.
-	 * @param value - value of the tag. 
+	 * @param value - value of the tag.
 	 * @return The constructed NBT tag.
 	 */
 	public static NbtBase<Long> of(String name, long value) {
@@ -382,7 +386,7 @@ public class NbtFactory {
 	/**
 	 * Constructs a NBT tag of type float.
 	 * @param name - name of the tag.
-	 * @param value - value of the tag. 
+	 * @param value - value of the tag.
 	 * @return The constructed NBT tag.
 	 */
 	public static NbtBase<Float> of(String name, float value) {
@@ -392,7 +396,7 @@ public class NbtFactory {
 	/**
 	 * Constructs a NBT tag of type double.
 	 * @param name - name of the tag.
-	 * @param value - value of the tag. 
+	 * @param value - value of the tag.
 	 * @return The constructed NBT tag.
 	 */
 	public static NbtBase<Double> of(String name, double value) {
@@ -402,7 +406,7 @@ public class NbtFactory {
 	/**
 	 * Constructs a NBT tag of type byte array.
 	 * @param name - name of the tag.
-	 * @param value - value of the tag. 
+	 * @param value - value of the tag.
 	 * @return The constructed NBT tag.
 	 */
 	public static NbtBase<byte[]> of(String name, byte[] value) {
@@ -412,7 +416,7 @@ public class NbtFactory {
 	/**
 	 * Constructs a NBT tag of type int array.
 	 * @param name - name of the tag.
-	 * @param value - value of the tag. 
+	 * @param value - value of the tag.
 	 * @return The constructed NBT tag.
 	 */
 	public static NbtBase<int[]> of(String name, int[] value) {
@@ -421,7 +425,7 @@ public class NbtFactory {
 	
 	/**
 	 * Construct a new NBT compound initialized with a given list of NBT values.
-	 * @param name - the name of the compound wrapper. 
+	 * @param name - the name of the compound wrapper.
 	 * @param list - the list of elements to add.
 	 * @return The new wrapped NBT compound.
 	 */
@@ -431,7 +435,7 @@ public class NbtFactory {
 	
 	/**
 	 * Construct a new NBT compound wrapper.
-	 * @param name - the name of the compound wrapper. 
+	 * @param name - the name of the compound wrapper.
 	 * @return The new wrapped NBT compound.
 	 */
 	public static NbtCompound ofCompound(String name) {
@@ -440,6 +444,7 @@ public class NbtFactory {
 	
 	/**
 	 * Construct a NBT list of out an array of values.
+	 * @param <T> Type
 	 * @param name - name of this list.
 	 * @param elements - elements to add.
 	 * @return The new filled NBT list.
@@ -450,6 +455,7 @@ public class NbtFactory {
 	
 	/**
 	 * Construct a NBT list of out a list of values.
+	 * @param <T> Type
 	 * @param name - name of this list.
 	 * @param elements - elements to add.
 	 * @return The new filled NBT list.
@@ -460,6 +466,7 @@ public class NbtFactory {
 	
 	/**
 	 * Create a new NBT wrapper from a given type.
+	 * @param <T> Type
 	 * @param type - the NBT type.
 	 * @param name - the name of the NBT tag.
 	 * @return The new wrapped NBT tag.
@@ -519,7 +526,7 @@ public class NbtFactory {
 		if (type == NbtType.TAG_COMPOUND)
 			return (NbtWrapper<T>) new WrappedCompound(handle);
 		else if (type == NbtType.TAG_LIST)
-			return (NbtWrapper<T>) new WrappedList(handle);
+			return new WrappedList(handle);
 		else
 			return new WrappedElement<T>(handle);
 	}
@@ -532,13 +539,14 @@ public class NbtFactory {
 		if (type == NbtType.TAG_COMPOUND)
 			return (NbtWrapper<T>) new WrappedCompound(handle, name);
 		else if (type == NbtType.TAG_LIST)
-			return (NbtWrapper<T>) new WrappedList(handle, name);
+			return new WrappedList(handle, name);
 		else
 			return new WrappedElement<T>(handle, name);
 	}
 	
 	/**
 	 * Create a new NBT wrapper from a given type.
+	 * @param <T> Type
 	 * @param type - the NBT type.
 	 * @param name - the name of the NBT tag.
 	 * @param value - the value of the new tag.
@@ -555,6 +563,7 @@ public class NbtFactory {
 	
 	/**
 	 * Create a new NBT wrapper from a given type.
+	 * @param <T> Type
 	 * @param type - type of the NBT value.
 	 * @param name - the name of the NBT tag.
 	 * @param value - the value of the new tag.

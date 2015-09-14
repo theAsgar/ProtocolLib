@@ -80,6 +80,7 @@ public class NbtBinarySerializer {
 	
 	/**
 	 * Write the content of a wrapped NBT tag to a stream.
+	 * @param <TType> Type
 	 * @param value - the NBT tag to write.
 	 * @param destination - the destination stream.
 	 */
@@ -102,6 +103,7 @@ public class NbtBinarySerializer {
 
 	/**
 	 * Load an NBT tag from a stream.
+	 * @param <TType> Type
 	 * @param source - the input stream.
 	 * @return An NBT tag.
 	 */
@@ -156,6 +158,7 @@ public class NbtBinarySerializer {
 	
 	/**
 	 * Load an NBT list from a stream.
+	 * @param <T> Type
 	 * @param source - the input stream.
 	 * @return An NBT list.
 	 */

@@ -1,10 +1,5 @@
 package com.comphenix.protocol.utility;
 
-import io.netty.buffer.ByteBuf;
-import io.netty.buffer.UnpooledByteBufAllocator;
-import io.netty.channel.ChannelHandlerContext;
-import io.netty.util.concurrent.GenericFutureListener;
-
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.List;
@@ -15,6 +10,7 @@ import net.sf.cglib.proxy.MethodInterceptor;
 import net.sf.cglib.proxy.MethodProxy;
 
 import com.comphenix.protocol.PacketType;
+import com.comphenix.protocol.compat.netty.Netty;
 import com.comphenix.protocol.events.PacketContainer;
 import com.comphenix.protocol.reflect.FuzzyReflection;
 
@@ -41,7 +37,7 @@ public class MinecraftMethods {
 	 */
 	public static Method getSendPacketMethod() {
 		if (sendPacketMethod == null) {
-			Class<?> serverHandlerClass = MinecraftReflection.getNetServerHandlerClass();
+			Class<?> serverHandlerClass = MinecraftReflection.getPlayerConnectionClass();
 
 			try {
 				sendPacketMethod = FuzzyReflection.fromClass(serverHandlerClass).getMethodByName("sendPacket.*");
@@ -98,7 +94,7 @@ public class MinecraftMethods {
 	public static Method getNetworkManagerHandleMethod() {
 		if (networkManagerHandle == null) {
 			networkManagerHandle = FuzzyReflection.fromClass(MinecraftReflection.getNetworkManagerClass(), true).
-					getMethodByParameters("handle", MinecraftReflection.getPacketClass(), GenericFutureListener[].class);
+					getMethodByParameters("handle", MinecraftReflection.getPacketClass(), Netty.getGenericFutureListenerArray());
 			networkManagerHandle.setAccessible(true);
 		}
 		return networkManagerHandle;
@@ -113,7 +109,7 @@ public class MinecraftMethods {
 	public static Method getNetworkManagerReadPacketMethod() {
 		if (networkManagerPacketRead == null) {
 			networkManagerPacketRead = FuzzyReflection.fromClass(MinecraftReflection.getNetworkManagerClass(), true).
-					getMethodByParameters("packetRead", ChannelHandlerContext.class, MinecraftReflection.getPacketClass());
+					getMethodByParameters("packetRead", Netty.getChannelHandlerContext(), MinecraftReflection.getPacketClass());
 			networkManagerPacketRead.setAccessible(true);
 		}
 		return networkManagerPacketRead;
@@ -166,47 +162,43 @@ public class MinecraftMethods {
 			enhancer.setSuperclass(MinecraftReflection.getPacketDataSerializerClass());
 			enhancer.setCallback(new MethodInterceptor() {
 				@Override
-				public Object intercept(Object obj, Method method, Object[] args, MethodProxy proxy)
-						throws Throwable {
-					/* if (method.getName().contains("read"))
+				public Object intercept(Object obj, Method method, Object[] args, MethodProxy proxy) throws Throwable {
+					if (method.getName().contains("read"))
 						throw new ReadMethodException();
 					if (method.getName().contains("write"))
-						throw new WriteMethodException(); */
-					if (method.getName().equals("a"))
-						throw new ReadMethodException();
-					if (method.getName().equals("b"))
 						throw new WriteMethodException();
 					return proxy.invokeSuper(obj, args);
 				}
 			});
-			
+
 			// Create our proxy object
 			Object javaProxy = enhancer.create(
-				new Class<?>[] { ByteBuf.class },
-				new Object[]   { UnpooledByteBufAllocator.DEFAULT.buffer() }
+					new Class<?>[] { MinecraftReflection.getByteBufClass() },
+					new Object[] { Netty.allocateUnpooled().getHandle() }
 			);
-			
-			Object lookPacket = new PacketContainer(PacketType.Play.Client.BLOCK_PLACE).getHandle();
-			List<Method> candidates = FuzzyReflection.fromClass(MinecraftReflection.getPacketClass()).
-				getMethodListByParameters(Void.TYPE, new Class<?>[] { MinecraftReflection.getPacketDataSerializerClass() });
-			
+
+			Object lookPacket = new PacketContainer(PacketType.Play.Client.CLOSE_WINDOW).getHandle();
+			List<Method> candidates = FuzzyReflection.fromClass(MinecraftReflection.getPacketClass())
+					.getMethodListByParameters(Void.TYPE, new Class<?>[] { MinecraftReflection.getPacketDataSerializerClass() });
+
 			// Look through all the methods
 			for (Method method : candidates) {
 				try {
 					method.invoke(lookPacket, javaProxy);
 				} catch (InvocationTargetException e) {
-					if (e.getCause() instanceof ReadMethodException)
+					if (e.getCause() instanceof ReadMethodException) {
 						// Must be the reader
 						packetReadByteBuf = method;
-					else if (e.getCause() instanceof WriteMethodException)
+					} else if (e.getCause() instanceof WriteMethodException) {
 						packetWriteByteBuf = method;
-					else
-						throw new RuntimeException("Inner exception.", e);
+					} else {
+						// throw new RuntimeException("Inner exception.", e);
+					}
 				} catch (Exception e) {
 					throw new RuntimeException("Generic reflection error.", e);
 				}
 			}
-			
+
 			if (packetReadByteBuf == null)
 				throw new IllegalStateException("Unable to find Packet.read(PacketDataSerializer)");
 			if (packetWriteByteBuf == null)

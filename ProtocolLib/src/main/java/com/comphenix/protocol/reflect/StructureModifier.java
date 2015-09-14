@@ -24,7 +24,10 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.logging.Level;
 
+import com.comphenix.protocol.ProtocolLibrary;
+import com.comphenix.protocol.error.PluginContext;
 import com.comphenix.protocol.reflect.compiler.BackgroundCompiler;
 import com.comphenix.protocol.reflect.instances.BannedGenerator;
 import com.comphenix.protocol.reflect.instances.DefaultInstances;
@@ -178,41 +181,79 @@ public class StructureModifier<TField> {
 		this.subtypeCache = subTypeCache;
 		this.useStructureCompiler = useStructureCompiler;
 	}
-	
+
 	/**
 	 * Reads the value of a field given its index.
+	 * <p>
+	 * Note: This method is prone to exceptions (there are currently 5 total throw statements). It is recommended that you
+	 * use {@link #readSafely(int)}, which returns {@code null} if the field doesn't exist, instead of throwing an exception.
+	 * 
 	 * @param fieldIndex - index of the field.
 	 * @return Value of the field.
-	 * @throws FieldAccessException The field doesn't exist, or it cannot be accessed under the current security contraints.
+	 * @throws FieldAccessException if the field doesn't exist, or it cannot be accessed under the current security contraints.
 	 */
-	@SuppressWarnings("unchecked")
 	public TField read(int fieldIndex) throws FieldAccessException {
+		try {
+			return readInternal(fieldIndex);
+		} catch (FieldAccessException ex) {
+			String plugin = PluginContext.getPluginCaller(ex);
+			if (ProtocolLibrary.INCOMPATIBLE.contains(plugin)) {
+				ProtocolLibrary.log(Level.WARNING, "Encountered an exception caused by incompatible plugin {0}.", plugin);
+				ProtocolLibrary.log(Level.WARNING, "It is advised that you remove it.");
+			}
+
+			throw ex;
+		}
+	}
+
+	@SuppressWarnings("unchecked")
+	private TField readInternal(int fieldIndex) throws FieldAccessException {
+		if (target == null)
+			throw new IllegalStateException("Cannot read from a null target!");
+
 		if (fieldIndex < 0)
 			throw new FieldAccessException(String.format("Field index (%s) cannot be negative.", fieldIndex));
+
+		if (data.size() == 0)
+			throw new FieldAccessException(String.format("No field with type %s exists in class %s.", fieldType.getName(),
+					target.getClass().getSimpleName()));
+
 		if (fieldIndex >= data.size())
 			throw new FieldAccessException(String.format("Field index out of bounds. (Index: %s, Size: %s)", fieldIndex, data.size()));
-		if (target == null)
-			throw new IllegalStateException("Cannot read from a null target");
 
 		try {
 			Object result = FieldUtils.readField(data.get(fieldIndex), target, true);
 
 			// Use the converter, if we have it
-			if (needConversion())
+			if (needConversion()) {
 				return converter.getSpecific(result);
-			else
+			} else {
 				return (TField) result;
-
+			}
 		} catch (IllegalAccessException e) {
 			throw new FieldAccessException("Cannot read field due to a security limitation.", e);
 		}
 	}
-
+	
 	/**
-	 * Reads the value of a field if and ONLY IF it exists.
+	 * Reads the value of a field only if it exists. If the field does not exist, {@code null} is returned.
+	 * <p>
+	 * As its name implies, this method is a much safer alternative to {@link #read(int)}.
+	 * In addition to throwing less exceptions and thereby causing less console spam, this
+	 * method makes providing backwards compatiblity signficiantly easier, as shown below:
+	 * 
+	 * <pre><code>
+	 * BlockPosition position = packet.getBlockPositionModifier().readSafely(0);
+	 * if (position != null) {
+	 *     // Handle 1.8+
+	 * } else {
+	 *     // Handle 1.7-
+	 * }
+	 * </code></pre>
+	 * 
 	 * @param fieldIndex - index of the field.
 	 * @return Value of the field, or NULL if it doesn't exist.
-	 * @throws FieldAccessException The field cannot be accessed under the current security contraints.
+	 * @throws FieldAccessException if the field cannot be accessed under the current security constraints.
 	 */
 	public TField readSafely(int fieldIndex) throws FieldAccessException {
 		if (fieldIndex >= 0 && fieldIndex < data.size()) {
@@ -282,22 +323,42 @@ public class StructureModifier<TField> {
 	 * @throws FieldAccessException The field doesn't exist, or it cannot be accessed under the current security contraints.
 	 */
 	public StructureModifier<TField> write(int fieldIndex, TField value) throws FieldAccessException {
+		try {
+			return writeInternal(fieldIndex, value);
+		} catch (FieldAccessException ex) {
+			String plugin = PluginContext.getPluginCaller(ex);
+			if (ProtocolLibrary.INCOMPATIBLE.contains(plugin)) {
+				ProtocolLibrary.log(Level.WARNING, "Encountered an exception caused by incompatible plugin {0}.", plugin);
+				ProtocolLibrary.log(Level.WARNING, "It is advised that you remove it.");
+			}
+
+			throw ex;
+		}
+	}
+
+	private StructureModifier<TField> writeInternal(int fieldIndex, TField value) throws FieldAccessException {
+		if (target == null)
+			throw new IllegalStateException("Cannot read from a null target!");
+
 		if (fieldIndex < 0)
 			throw new FieldAccessException(String.format("Field index (%s) cannot be negative.", fieldIndex));
+
+		if (data.size() == 0)
+			throw new FieldAccessException(String.format("No field with type %s exists in class %s.", fieldType.getName(),
+					target.getClass().getSimpleName()));
+
 		if (fieldIndex >= data.size())
 			throw new FieldAccessException(String.format("Field index out of bounds. (Index: %s, Size: %s)", fieldIndex, data.size()));
-		if (target == null)
-			throw new IllegalStateException("Cannot write to a null target");
-		
+
 		// Use the converter, if it exists
 		Object obj = needConversion() ? converter.getGeneric(getFieldType(fieldIndex), value) : value;
-		
+
 		try {
 			FieldUtils.writeField(data.get(fieldIndex), target, obj, true);
 		} catch (IllegalAccessException e) {
 			throw new FieldAccessException("Cannot read field due to a security limitation.", e);
 		}
-		
+
 		// Make this method chainable
 		return this;
 	}
@@ -347,6 +408,7 @@ public class StructureModifier<TField> {
 	
 	/**
 	 * Retrieves a structure modifier that only reads and writes fields of a given type.
+	 * @param <T> Type
 	 * @param fieldType - the type, or supertype, of every field to modify.
 	 * @return A structure modifier for fields of this type.
 	 */
@@ -360,24 +422,30 @@ public class StructureModifier<TField> {
 	 * @throws FieldAccessException If we're unable to write to the fields due to a security limitation.
 	 */
 	public StructureModifier<TField> writeDefaults() throws FieldAccessException {
-		
 		DefaultInstances generator = DefaultInstances.DEFAULT;
-		
+
 		// Write a default instance to every field
 		for (Field field : defaultFields.keySet()) {
 			try {
-				FieldUtils.writeField(field, target,
-						generator.getDefault(field.getType()), true);
+				// Special case for Spigot's custom chat components
+				// They must be null or messages will be blank
+				if (field.getType().getCanonicalName().equals("net.md_5.bungee.api.chat.BaseComponent[]")) {
+					FieldUtils.writeField(field, target, null, true);
+					continue;
+				}
+
+				FieldUtils.writeField(field, target, generator.getDefault(field.getType()), true);
 			} catch (IllegalAccessException e) {
 				throw new FieldAccessException("Cannot write to field due to a security limitation.", e);
 			}
 		}
-		
+
 		return this;
 	}
 	
 	/**
 	 * Retrieves a structure modifier that only reads and writes fields of a given type.
+	 * @param <T> Type
 	 * @param fieldType - the type, or supertype, of every field to modify.
 	 * @param converter - converts objects into the given type.
 	 * @return A structure modifier for fields of this type.
@@ -461,10 +529,10 @@ public class StructureModifier<TField> {
 	
 	/**
 	 * Create a new structure modifier for the new field type.
+	 * @param <T> Type
 	 * @param fieldType - common type of each field.
 	 * @param filtered - list of fields after filtering the original modifier.
 	 * @param defaults - list of default values after filtering the original.
-	 * @param converter - the new converter
 	 * @return A new structure modifier.
 	 */
 	protected <T> StructureModifier<T> withFieldType(
@@ -474,6 +542,7 @@ public class StructureModifier<TField> {
 	
 	/**
 	 * Create a new structure modifier for the new field type.
+	 * @param <T> Type
 	 * @param fieldType - common type of each field.
 	 * @param filtered - list of fields after filtering the original modifier.
 	 * @param defaults - list of default values after filtering the original.
@@ -606,5 +675,10 @@ public class StructureModifier<TField> {
 			}
 		}
 		return result;
+	}
+
+	@Override
+	public String toString() {
+		return "StructureModifier[fieldType=" + fieldType + ", data=" + data + "]";
 	}
 }

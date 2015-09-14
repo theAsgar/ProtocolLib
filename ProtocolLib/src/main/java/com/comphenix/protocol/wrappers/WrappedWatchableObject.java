@@ -184,8 +184,8 @@ public class WrappedWatchableObject extends AbstractWrapper {
 
 	/**
 	 * Retrieve the type ID of a watchable object.
-	 * <p>
 	 * <table border=1>
+	 * <caption>Type to Value</caption>
 	 * <tbody>
 	 * <tr>
 	 * <th>Type ID</th>
@@ -230,9 +230,9 @@ public class WrappedWatchableObject extends AbstractWrapper {
 
 	/**
 	 * Set the type ID of a watchable object.
-	 * @see {@link #getTypeID()} for more information.
 	 * @param id - the new ID.
 	 * @throws FieldAccessException Reflection failed.
+	 * @see #getTypeID()
 	 */
 	public void setTypeID(int id) throws FieldAccessException {
 		modifier.<Integer>withType(int.class).write(0, id);

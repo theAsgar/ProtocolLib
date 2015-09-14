@@ -2,21 +2,21 @@
 ## Eclipse
 #################
 
-*.pydevproject
+# Generic project files
 .project
-.metadata
+.classpath
+.settings/
 bin/
+
+*.pydevproject
+.metadata
 tmp/
 *.tmp
 *.bak
 *.swp
 *~.nib
 local.properties
-.classpath
-.settings/
 .loadpath
-target/
-.gitignore
 
 # External tool builders
 .externalToolBuilders/
@@ -30,6 +30,12 @@ target/
 # PDT-specific
 .buildpath
 
+#################
+## Maven
+#################
+
+target/
+dependency-reduced-pom.xml
 
 #################
 ## Visual Studio
@@ -155,14 +161,14 @@ pip-log.txt
 .coverage
 .tox
 
-#Translations
+# Translations
 *.mo
 
-#Mr Developer
+# Mr Developer
 .mr.developer.cfg
 
 # Mac crap
 .DS_Store
 
-# Maven
+# Log4J files
 logs/

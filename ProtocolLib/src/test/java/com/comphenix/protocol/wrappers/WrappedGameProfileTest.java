@@ -11,8 +11,9 @@ import com.comphenix.protocol.BukkitInitialization;
 import com.google.common.base.Charsets;
 
 public class WrappedGameProfileTest {
+
 	@BeforeClass
-	public static void initializeBukkit() throws IllegalAccessException {
+	public static void initializeBukkit() {
 		BukkitInitialization.initializePackage();
 	}
 	
@@ -26,7 +27,7 @@ public class WrappedGameProfileTest {
 	}
 	
 	@SuppressWarnings("deprecation")
-	@Test(expected = IllegalArgumentException.class)
+	@Test(expected = RuntimeException.class)
 	public void testNullFailure() {
 		new WrappedGameProfile((String)null, null);
 	}

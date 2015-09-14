@@ -1,23 +1,21 @@
 package com.comphenix.protocol;
 
-import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
-import net.minecraft.server.v1_8_R1.Block;
-import net.minecraft.server.v1_8_R1.Item;
-import net.minecraft.server.v1_8_R1.StatisticList;
+
+import java.util.logging.Logger;
+
+import net.minecraft.server.v1_8_R3.DispenserRegistry;
 
 import org.bukkit.Bukkit;
-import org.bukkit.Material;
 import org.bukkit.Server;
-import org.bukkit.craftbukkit.v1_8_R1.inventory.CraftItemFactory;
-import org.bukkit.inventory.ItemFactory;
-import org.bukkit.inventory.meta.ItemMeta;
+import org.bukkit.craftbukkit.v1_8_R3.CraftServer;
+import org.bukkit.craftbukkit.v1_8_R3.inventory.CraftItemFactory;
+import org.bukkit.craftbukkit.v1_8_R3.util.Versioning;
 
-import com.comphenix.protocol.reflect.FieldUtils;
 import com.comphenix.protocol.utility.Constants;
 import com.comphenix.protocol.utility.MinecraftReflection;
-// Will have to be updated for every version though
+import com.comphenix.protocol.utility.MinecraftVersion;
 
 /**
  * Used to ensure that ProtocolLib and Bukkit is prepared to be tested.
@@ -36,31 +34,23 @@ public class BukkitInitialization {
 			// Denote that we're done
 			initialized = true;
 
-			initializePackage();
-
-			try {
-				Block.R(); // Block.register();
-				Item.t(); // Item.register();
-				StatisticList.a(); // StatisticList.register();
-			} catch (Throwable ex) {
-				// Swallow
-				ex.printStackTrace();
-			}
+			DispenserRegistry.c(); // Basically registers everything
 
 			// Mock the server object
 			Server mockedServer = mock(Server.class);
-			ItemFactory mockedFactory = mock(CraftItemFactory.class);
-			ItemMeta mockedMeta = mock(ItemMeta.class);
 
-			when(mockedServer.getItemFactory()).thenReturn(mockedFactory);
+			when(mockedServer.getLogger()).thenReturn(Logger.getLogger("Minecraft"));
+			when(mockedServer.getName()).thenReturn("Mock Server");
+			when(mockedServer.getVersion()).thenReturn(CraftServer.class.getPackage().getImplementationVersion());
+			when(mockedServer.getBukkitVersion()).thenReturn(Versioning.getBukkitVersion());
+
+			when(mockedServer.getItemFactory()).thenReturn(CraftItemFactory.instance());
 			when(mockedServer.isPrimaryThread()).thenReturn(true);
-			when(mockedFactory.getItemMeta(any(Material.class))).thenReturn(mockedMeta);
 
 			// Inject this fake server
-			FieldUtils.writeStaticField(Bukkit.class, "server", mockedServer, true);
+			Bukkit.setServer(mockedServer);
 
-			// And the fake item factory
-			FieldUtils.writeStaticField(CraftItemFactory.class, "instance", mockedFactory, true);
+			initializePackage();
 		}
 	}
 
@@ -70,5 +60,6 @@ public class BukkitInitialization {
 	public static void initializePackage() {
 		// Initialize reflection
 		MinecraftReflection.setMinecraftPackage(Constants.NMS, Constants.OBC);
+		MinecraftVersion.setCurrentVersion(MinecraftVersion.BOUNTIFUL_UPDATE);
 	}
 }

@@ -1,5 +1,5 @@
 name: ProtocolLib
-version: ${project.version}
+version: ${project.version}${project.build.number}
 description: Provides read/write access to the Minecraft protocol.
 authors: [dmulloy2, comphenix]
 
@@ -10,7 +10,7 @@ database: false
 commands:
   protocol:
     description: Performs administrative tasks regarding ProtocolLib.
-    usage: /<command> config|check|update
+    usage: /<command> config|timings|listeners|version|dump
     permission: protocol.admin
     permission-message: You don't have <permission>
   packet:

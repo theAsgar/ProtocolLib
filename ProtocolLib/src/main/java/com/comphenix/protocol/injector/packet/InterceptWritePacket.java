@@ -53,11 +53,12 @@ public class InterceptWritePacket {
 		this.modifierRest = new WritePacketModifier(reporter, false);
 	}
 	
+	// TODO: PacketId should probably do something...
 	private Class<?> createProxyClass(int packetId) {
 		// Construct the proxy object
 		Enhancer ex = EnhancerFactory.getInstance().createEnhancer();
 		
-		// Attempt to share callback filter 
+		// Attempt to share callback filter
 		if (filter == null) {
 			filter = new CallbackFilter() {
 				@Override
@@ -87,7 +88,7 @@ public class InterceptWritePacket {
 		if (proxyClass != null) {
 			// Check that we found the read method
 			if (!writePacketIntercepted) {
-				reporter.reportWarning(this, 
+				reporter.reportWarning(this,
 					Report.newBuilder(REPORT_CANNOT_FIND_WRITE_PACKET_METHOD).
 						messageParam(MinecraftReflection.getPacketClass()));
 			}
@@ -115,7 +116,10 @@ public class InterceptWritePacket {
 	
 	/**
 	 * Construct a new instance of the proxy object.
-	 * @return New instance of proxy, or NULL if we failed.
+	 * @param proxyObject - Object to construct proxy of
+	 * @param event - Packet event
+	 * @param marker - Network marker
+	 * @return New instance of the proxy, or null if we failed.
 	 */
 	@SuppressWarnings("deprecation")
 	public Object constructProxy(Object proxyObject, PacketEvent event, NetworkMarker marker) {
@@ -130,7 +134,7 @@ public class InterceptWritePacket {
 			return generated;
 			
 		} catch (Exception e) {
-			reporter.reportWarning(this, 
+			reporter.reportWarning(this,
 					Report.newBuilder(REPORT_CANNOT_CONSTRUCT_WRITE_PROXY).
 						messageParam(proxyClass));
 			return null;

@@ -1,12 +1,12 @@
 package com.comphenix.protocol.wrappers;
 
 import static org.junit.Assert.assertEquals;
-import net.minecraft.server.v1_8_R1.EnumChatVisibility;
-import net.minecraft.server.v1_8_R1.EnumClientCommand;
-import net.minecraft.server.v1_8_R1.EnumDifficulty;
-import net.minecraft.server.v1_8_R1.EnumEntityUseAction;
-import net.minecraft.server.v1_8_R1.EnumGamemode;
-import net.minecraft.server.v1_8_R1.EnumProtocol;
+import net.minecraft.server.v1_8_R3.EntityHuman.EnumChatVisibility;
+import net.minecraft.server.v1_8_R3.EnumDifficulty;
+import net.minecraft.server.v1_8_R3.EnumProtocol;
+import net.minecraft.server.v1_8_R3.PacketPlayInClientCommand.EnumClientCommand;
+import net.minecraft.server.v1_8_R3.PacketPlayInUseEntity.EnumEntityUseAction;
+import net.minecraft.server.v1_8_R3.WorldSettings.EnumGamemode;
 
 import org.junit.BeforeClass;
 import org.junit.Test;
@@ -27,7 +27,7 @@ public class EnumWrappersTest {
 	}
 	
 	@BeforeClass
-	public static void initializeBukkit() throws IllegalAccessException {
+	public static void initializeBukkit() {
 		BukkitInitialization.initializePackage();
 	}
 	

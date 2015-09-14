@@ -4,23 +4,40 @@ import static org.junit.Assert.assertEquals;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
-import net.minecraft.server.v1_8_R1.ChatComponentText;
-import net.minecraft.server.v1_8_R1.ChatSerializer;
-import net.minecraft.server.v1_8_R1.IChatBaseComponent;
-import net.minecraft.server.v1_8_R1.ServerPing;
-import net.minecraft.server.v1_8_R1.ServerPingPlayerSample;
-import net.minecraft.server.v1_8_R1.ServerPingServerData;
+import net.minecraft.server.v1_8_R3.ChatComponentText;
+import net.minecraft.server.v1_8_R3.ChunkCoordIntPair;
+import net.minecraft.server.v1_8_R3.DataWatcher.WatchableObject;
+import net.minecraft.server.v1_8_R3.IBlockData;
+import net.minecraft.server.v1_8_R3.IChatBaseComponent;
+import net.minecraft.server.v1_8_R3.IChatBaseComponent.ChatSerializer;
+import net.minecraft.server.v1_8_R3.NBTCompressedStreamTools;
+import net.minecraft.server.v1_8_R3.PacketPlayOutUpdateAttributes.AttributeSnapshot;
+import net.minecraft.server.v1_8_R3.PlayerConnection;
+import net.minecraft.server.v1_8_R3.ServerPing;
+import net.minecraft.server.v1_8_R3.ServerPing.ServerData;
+import net.minecraft.server.v1_8_R3.ServerPing.ServerPingPlayerSample;
 
+import org.bukkit.Material;
 import org.bukkit.block.Block;
 import org.bukkit.entity.Entity;
+import org.bukkit.inventory.ItemStack;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.powermock.core.classloader.annotations.PowerMockIgnore;
 
 import com.comphenix.protocol.BukkitInitialization;
-import com.google.common.collect.Maps;
 
+@RunWith(org.powermock.modules.junit4.PowerMockRunner.class)
+@PowerMockIgnore({ "org.apache.log4j.*", "org.apache.logging.*", "org.bukkit.craftbukkit.libs.jline.*" })
 public class MinecraftReflectionTest {
+
+	@BeforeClass
+	public static void initializeBukkit() throws IllegalAccessException {
+		BukkitInitialization.initializeItemMeta();
+	}
+
 	// Mocking objects
 	private interface FakeEntity {
 		public Entity getBukkitEntity();
@@ -28,17 +45,6 @@ public class MinecraftReflectionTest {
 
 	private interface FakeBlock {
 		public Block getBukkitEntity();
-	}
-
-	@BeforeClass
-	public static void initializeReflection() throws IllegalAccessException {
-		BukkitInitialization.initializePackage();
-
-		// Set up a package with no class loader knowledge
-		MinecraftReflection.minecraftPackage = new CachedPackage(
-			MinecraftReflection.getMinecraftPackage(),
-			ClassSource.fromMap(Maps.<String, Class<?>>newHashMap())
-		);
 	}
 
 	@AfterClass
@@ -64,10 +70,10 @@ public class MinecraftReflectionTest {
 		MinecraftReflection.getBukkitEntity("Hello");
 	}
 
-//	@Test
-//	public void testNbtStreamTools() {
-//		assertEquals(NBTCompressedStreamTools.class, MinecraftReflection.getNbtCompressedStreamToolsClass());
-//	}
+	@Test
+	public void testAttributeSnapshot() {
+		assertEquals(AttributeSnapshot.class, MinecraftReflection.getAttributeSnapshotClass());
+	}
 
 	@Test
 	public void testChatComponent() {
@@ -85,6 +91,21 @@ public class MinecraftReflectionTest {
 	}
 
 	@Test
+	public void testChunkCoordIntPair() {
+		assertEquals(ChunkCoordIntPair.class, MinecraftReflection.getChunkCoordIntPair());
+	}
+
+	@Test
+	public void testIBlockData() {
+		assertEquals(IBlockData.class, MinecraftReflection.getIBlockDataClass());
+	}
+
+	@Test
+	public void testPlayerConnection() {
+		assertEquals(PlayerConnection.class, MinecraftReflection.getPlayerConnectionClass());
+	}
+
+	@Test
 	public void testServerPing() {
 		assertEquals(ServerPing.class, MinecraftReflection.getServerPingClass());
 	}
@@ -96,16 +117,23 @@ public class MinecraftReflectionTest {
 
 	@Test
 	public void testServerPingServerData() {
-		assertEquals(ServerPingServerData.class, MinecraftReflection.getServerPingServerDataClass());
+		assertEquals(ServerData.class, MinecraftReflection.getServerPingServerDataClass());
 	}
 
-//	@Test
-//	public void testChunkCoordIntPair() {
-//		assertEquals(ChunkCoordIntPair.class, MinecraftReflection.getChunkCoordIntPair());
-//	}
+	@Test
+	public void testNbtStreamTools() {
+		assertEquals(NBTCompressedStreamTools.class, MinecraftReflection.getNbtCompressedStreamToolsClass());
+	}
 
-//	@Test
-//	public void testWatchableObject() {
-//		assertEquals(WatchableObject.class, MinecraftReflection.getWatchableObjectClass());
-//	}
+	@Test
+	public void testWatchableObject() {
+		assertEquals(WatchableObject.class, MinecraftReflection.getWatchableObjectClass());
+	}
+
+	@Test
+	public void testItemStacks() {
+		ItemStack stack = new ItemStack(Material.GOLD_SWORD);
+		Object nmsStack = MinecraftReflection.getMinecraftItemStack(stack);
+		assertEquals(stack, MinecraftReflection.getBukkitItemStack(nmsStack));
+	}
 }

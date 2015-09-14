@@ -24,9 +24,11 @@ import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.Set;
 
 import org.bukkit.Material;
 import org.bukkit.World;
@@ -210,8 +212,10 @@ public class BukkitConverters {
 	
 	/**
 	 * Retrieve an equivalent converter for a map of generic keys and primitive values.
-	 * @param genericItemType - the generic item type.
-	 * @param itemConverter - an equivalent converter for the generic type.
+	 * @param <T> Key type
+	 * @param <U> Value type
+	 * @param genericKeyType - the generic key type.
+	 * @param keyConverter - an equivalent converter for the generic type.
 	 * @return An equivalent converter.
 	 */
 	public static <T, U> EquivalentConverter<Map<T, U>> getMapConverter(
@@ -264,6 +268,7 @@ public class BukkitConverters {
 	
 	/**
 	 * Retrieve an equivalent converter for a list of generic items.
+	 * @param <T> Type
 	 * @param genericItemType - the generic item type.
 	 * @param itemConverter - an equivalent converter for the generic type.
 	 * @return An equivalent converter.
@@ -317,9 +322,68 @@ public class BukkitConverters {
 				}
 			};
 	}
-	
+
+	/**
+	 * Retrieve an equivalent converter for a set of generic items.
+	 * @param <T> Type
+	 * @param genericItemType - the generic item type.
+	 * @param itemConverter - an equivalent converter for the generic type.
+	 * @return An equivalent converter.
+	 */
+	@SuppressWarnings("unchecked")
+	public static <T> EquivalentConverter<Set<T>> getSetConverter(final Class<?> genericItemType, final EquivalentConverter<T> itemConverter) {
+		// Convert to and from the wrapper
+		return new IgnoreNullConverter<Set<T>>() {
+
+			@Override
+			protected Set<T> getSpecificValue(Object generic) {
+				if (generic instanceof Collection) {
+					Set<T> items = new HashSet<T>();
+
+					// Copy everything to a new list
+					for (Object item : (Collection<Object>) generic) {
+						T result = itemConverter.getSpecific(item);
+
+						if (item != null)
+							items.add(result);
+					}
+
+					return items;
+				}
+
+				// Not valid
+				return null;
+			}
+
+			@Override
+			protected Object getGenericValue(Class<?> genericType, Set<T> specific) {
+				Collection<Object> newContainer = (Collection<Object>) DefaultInstances.DEFAULT.getDefault(genericType);
+
+				// Convert each object
+				for (T position : specific) {
+					Object converted = itemConverter.getGeneric(genericItemType, position);
+
+					if (position == null)
+						newContainer.add(null);
+					else if (converted != null)
+						newContainer.add(converted);
+				}
+
+				return newContainer;
+			}
+
+			@Override
+			public Class<Set<T>> getSpecificType() {
+				// Damn you Java
+				Class<?> dummy = Set.class;
+				return (Class<Set<T>>) dummy;
+			}
+		};
+	}
+
 	/**
 	 * Retrieve an equivalent converter for an array of generic items.
+	 * @param <T> Type
 	 * <p>
 	 * The array is wrapped in a list.
 	 * @param genericItemType - the generic item type.
@@ -395,7 +459,7 @@ public class BukkitConverters {
 	
 	/**
 	 * Retrieve a converter for wrapped chat components.
-	 * @return Wrapped chat componetns.
+	 * @return Wrapped chat component.
 	 */
 	public static EquivalentConverter<WrappedChatComponent> getWrappedChatComponentConverter() {
 		return new IgnoreNullConverter<WrappedChatComponent>() {
@@ -412,6 +476,29 @@ public class BukkitConverters {
 			@Override
 			public Class<WrappedChatComponent> getSpecificType() {
 				return WrappedChatComponent.class;
+			}
+		};
+	}
+	
+	/**
+	 * Retrieve a converter for wrapped block data.
+	 * @return Wrapped block data.
+	 */
+	public static EquivalentConverter<WrappedBlockData> getWrappedBlockDataConverter() {
+		return new IgnoreNullConverter<WrappedBlockData>() {
+			@Override
+			protected Object getGenericValue(Class<?> genericType, WrappedBlockData specific) {
+				return specific.getHandle();
+			}
+			
+			@Override
+			protected WrappedBlockData getSpecificValue(Object generic) {
+				return new WrappedBlockData(generic);
+			}
+			
+			@Override
+			public Class<WrappedBlockData> getSpecificType() {
+				return WrappedBlockData.class;
 			}
 		};
 	}
@@ -697,12 +784,13 @@ public class BukkitConverters {
 		// Initialize if we have't already
 		if (GET_BLOCK == null || GET_BLOCK_ID == null) {
 			Class<?> block = MinecraftReflection.getBlockClass();
-			
+
 			FuzzyMethodContract getIdContract = FuzzyMethodContract.newBuilder().
 					parameterExactArray(block).
 					requireModifier(Modifier.STATIC).
 					build();
 			FuzzyMethodContract getBlockContract = FuzzyMethodContract.newBuilder().
+					returnTypeExact(block).
 					parameterExactArray(int.class).
 					requireModifier(Modifier.STATIC).
 					build();
@@ -854,6 +942,7 @@ public class BukkitConverters {
 	
  	/**
 	 * Wraps a given equivalent converter in NULL checks, ensuring that such values are ignored.
+	 * @param <TType> Type
 	 * @param delegate - the underlying equivalent converter.
 	 * @return A equivalent converter that ignores NULL values.
 	 */
@@ -982,7 +1071,7 @@ public class BukkitConverters {
 	}
 	
 	/**
-	 * Retrieve every NMS <-> Bukkit converter as unwrappers.
+	 * Retrieve every NMS to/from Bukkit converter as unwrappers.
 	 * @return Every unwrapper.
 	 */
 	public static List<Unwrapper> getUnwrappers() {

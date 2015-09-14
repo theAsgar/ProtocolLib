@@ -23,6 +23,7 @@ import java.util.NavigableMap;
 import java.util.Set;
 import java.util.TreeMap;
 
+import com.comphenix.protocol.compat.guava.Guava;
 import com.google.common.base.Objects;
 import com.google.common.collect.Range;
 
@@ -67,7 +68,7 @@ public abstract class AbstractIntervalTree<TKey extends Comparable<TKey>, TValue
 
 		@Override
 		public Range<TKey> getKey() {
-			return Range.closed(left.key, right.key);
+			return Guava.closedRange(left.key, right.key);
 		}
 
 		@Override
@@ -139,6 +140,7 @@ public abstract class AbstractIntervalTree<TKey extends Comparable<TKey>, TValue
 	 * Removes every interval that intersects with the given range.
 	 * @param lowerBound - lowest value to remove.
 	 * @param upperBound - highest value to remove.
+	 * @return Intervals that were removed
 	 */
 	public Set<Entry> remove(TKey lowerBound, TKey upperBound) {
 		return remove(lowerBound, upperBound, false);
@@ -149,6 +151,7 @@ public abstract class AbstractIntervalTree<TKey extends Comparable<TKey>, TValue
 	 * @param lowerBound - lowest value to remove.
 	 * @param upperBound - highest value to remove.
 	 * @param preserveDifference - whether or not to preserve the intervals that are partially outside.
+	 * @return Intervals that were removed
 	 */
 	public Set<Entry> remove(TKey lowerBound, TKey upperBound, boolean preserveDifference) {
 		checkBounds(lowerBound, upperBound);

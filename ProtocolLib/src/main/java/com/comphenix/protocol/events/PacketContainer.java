@@ -17,9 +17,6 @@
 
 package com.comphenix.protocol.events;
 
-import io.netty.buffer.ByteBuf;
-import io.netty.buffer.UnpooledByteBufAllocator;
-
 import java.io.DataInput;
 import java.io.DataInputStream;
 import java.io.DataOutput;
@@ -32,6 +29,7 @@ import java.lang.reflect.Array;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -49,6 +47,8 @@ import org.bukkit.util.Vector;
 
 import com.comphenix.protocol.PacketType;
 import com.comphenix.protocol.PacketType.Protocol;
+import com.comphenix.protocol.compat.netty.Netty;
+import com.comphenix.protocol.compat.netty.WrappedByteBuf;
 import com.comphenix.protocol.injector.StructureCache;
 import com.comphenix.protocol.reflect.EquivalentConverter;
 import com.comphenix.protocol.reflect.FuzzyReflection;
@@ -78,6 +78,7 @@ import com.comphenix.protocol.wrappers.EnumWrappers.CombatEventType;
 import com.comphenix.protocol.wrappers.EnumWrappers.Difficulty;
 import com.comphenix.protocol.wrappers.EnumWrappers.EntityUseAction;
 import com.comphenix.protocol.wrappers.EnumWrappers.NativeGameMode;
+import com.comphenix.protocol.wrappers.EnumWrappers.Particle;
 import com.comphenix.protocol.wrappers.EnumWrappers.PlayerAction;
 import com.comphenix.protocol.wrappers.EnumWrappers.PlayerDigType;
 import com.comphenix.protocol.wrappers.EnumWrappers.PlayerInfoAction;
@@ -85,8 +86,10 @@ import com.comphenix.protocol.wrappers.EnumWrappers.ResourcePackStatus;
 import com.comphenix.protocol.wrappers.EnumWrappers.ScoreboardAction;
 import com.comphenix.protocol.wrappers.EnumWrappers.TitleAction;
 import com.comphenix.protocol.wrappers.EnumWrappers.WorldBorderAction;
+import com.comphenix.protocol.wrappers.MultiBlockChangeInfo;
 import com.comphenix.protocol.wrappers.PlayerInfoData;
 import com.comphenix.protocol.wrappers.WrappedAttribute;
+import com.comphenix.protocol.wrappers.WrappedBlockData;
 import com.comphenix.protocol.wrappers.WrappedChatComponent;
 import com.comphenix.protocol.wrappers.WrappedDataWatcher;
 import com.comphenix.protocol.wrappers.WrappedGameProfile;
@@ -98,7 +101,6 @@ import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
-import com.mojang.authlib.GameProfile;
 
 /**
  * Represents a Minecraft packet indirectly.
@@ -160,10 +162,9 @@ public class PacketContainer implements Serializable {
 	
 	/**
 	 * Creates a packet container for an existing packet.
-	 * <p>
-	 * Deprecated: Use {@link #PacketContainer(PacketType, Object))} instead.
 	 * @param id - ID of the given packet.
 	 * @param handle - contained packet.
+	 * @deprecated Use {@link #PacketContainer(PacketType, Object)} instead
 	 */
 	@Deprecated
 	public PacketContainer(int id, Object handle) {
@@ -172,11 +173,10 @@ public class PacketContainer implements Serializable {
 	
 	/**
 	 * Creates a packet container for an existing packet.
-	 * <p>
-	 * Deprecated: Use {@link #PacketContainer(PacketType, Object, StructureModifier))} instead.
 	 * @param id - ID of the given packet.
 	 * @param handle - contained packet.
 	 * @param structure - structure modifier.
+	 * @deprecated Use {@link #PacketContainer(PacketType, Object, StructureModifier)} instead
 	 */
 	@Deprecated
 	public PacketContainer(int id, Object handle, StructureModifier<Object> structure) {
@@ -193,7 +193,7 @@ public class PacketContainer implements Serializable {
 	
 	/**
 	 * Creates a packet container for an existing packet.
-	 * @param id - ID of the given packet.
+	 * @param type - Type of the given packet.
 	 * @param handle - contained packet.
 	 */
 	public PacketContainer(PacketType type, Object handle) {
@@ -202,7 +202,7 @@ public class PacketContainer implements Serializable {
 	
 	/**
 	 * Creates a packet container for an existing packet.
-	 * @param id - ID of the given packet.
+	 * @param type - Type of the given packet.
 	 * @param handle - contained packet.
 	 * @param structure - structure modifier.
 	 */
@@ -251,6 +251,7 @@ public class PacketContainer implements Serializable {
 	
 	/**
 	 * Retrieves a read/write structure for every field with the given type.
+	 * @param <T> Type
 	 * @param primitiveType - the type to find.
 	 * @return A modifier for this specific type.
 	 */
@@ -456,11 +457,8 @@ public class PacketContainer implements Serializable {
 	
 	/**
 	 * Retrieves a read/write structure for chunk positions.
-	 * 
-	 * @deprecated ChunkPosition no longer exists.
 	 * @return A modifier for a ChunkPosition.
 	 */
-	@Deprecated
 	public StructureModifier<ChunkPosition> getPositionModifier() {
 		// Convert to and from the Bukkit wrapper
 		return structureModifier.withType(
@@ -535,10 +533,8 @@ public class PacketContainer implements Serializable {
 	 * This modifier will automatically marshall between the visible ProtocolLib ChunkPosition and the
 	 * internal Minecraft ChunkPosition.
 	 * 
-	 * @deprecated ChunkPosition no longer exists.
 	 * @return A modifier for ChunkPosition list fields.
 	 */
-	@Deprecated
 	public StructureModifier<List<ChunkPosition>> getPositionCollectionModifier() {
 		// Convert to and from the ProtocolLib wrapper
 		return structureModifier.withType(
@@ -608,7 +604,35 @@ public class PacketContainer implements Serializable {
 	public StructureModifier<WrappedGameProfile> getGameProfiles() {
 		// Convert to and from the Bukkit wrapper
 		return structureModifier.<WrappedGameProfile>withType(
-				GameProfile.class, BukkitConverters.getWrappedGameProfileConverter());
+				MinecraftReflection.getGameProfileClass(), BukkitConverters.getWrappedGameProfileConverter());
+	}
+	
+	/**
+	 * Retrieves a read/write structure for BlockData in Minecraft 1.8.
+	 * <p>
+	 * This modifier will automatically marshall between WrappedBlockData and the
+	 * internal Minecraft IBlockData.
+	 * @return A modifier for BlockData fields.
+	 */
+	public StructureModifier<WrappedBlockData> getBlockData() {
+		// Convert to and from our wrapper
+		return structureModifier.<WrappedBlockData>withType(
+				MinecraftReflection.getIBlockDataClass(), BukkitConverters.getWrappedBlockDataConverter());
+	}
+
+	/**
+	 * Retrieves a read/write structure for MultiBlockChangeInfo arrays in Minecraft 1.8.
+	 * <p>
+	 * This modifier will automatically marshall between MultiBlockChangeInfo and the
+	 * internal Minecraft MultiBlockChangeInfo.
+	 * @return A modifier for BlockData fields.
+	 */
+	public StructureModifier<MultiBlockChangeInfo[]> getMultiBlockChangeInfoArrays() {
+		ChunkCoordIntPair chunk = getChunkCoordIntPairs().read(0);
+
+		// Convert to and from our wrapper
+		return structureModifier.<MultiBlockChangeInfo[]>withType(
+				MinecraftReflection.getMultiBlockChangeInfoArrayClass(), MultiBlockChangeInfo.getArrayConverter(chunk));
 	}
 	
 	/**
@@ -654,7 +678,7 @@ public class PacketContainer implements Serializable {
 	/**
 	 * Retrieve a read/write structure for the PlayerInfoData list fields in the following packet: <br>
 	 * <ul>
-	 *   <li>{@link PacketType.Play.Server.PLAYER_INFO}</li>
+	 *   <li>{@link PacketType.Play.Server#PLAYER_INFO}
 	 * </ul>
 	 * @return A modifier for PlayerInfoData list fields.
 	 */
@@ -739,7 +763,7 @@ public class PacketContainer implements Serializable {
 	}
 
 	/**
-	 * Retrieve a read/write structure for the PlayerInfo enum in 1.8
+	 * Retrieve a read/write structure for the PlayerInfo enum in 1.8.
 	 * @return A modifier for PlayerInfoAction enum fields.
 	 */
 	public StructureModifier<PlayerInfoAction> getPlayerInfoAction() {
@@ -806,6 +830,16 @@ public class PacketContainer implements Serializable {
         // Convert to and from the wrapper
         return structureModifier.<ScoreboardAction>withType(
                 EnumWrappers.getScoreboardActionClass(), EnumWrappers.getUpdateScoreActionConverter());
+    }
+
+    /**
+     * Retrieve a read/write structure for the Particle enum in 1.8.
+     * @return A modifier for Particle enum fields.
+     */
+    public StructureModifier<Particle> getParticles() {
+    	// Convert to and from the wrapper
+    	return structureModifier.<Particle>withType(
+    			EnumWrappers.getParticleClass(), EnumWrappers.getParticleConverter());
     }
 
 	/**
@@ -894,12 +928,11 @@ public class PacketContainer implements Serializable {
 
 		try {
 			if (MinecraftReflection.isUsingNetty()) {
-				ByteBuf buffer = createPacketBuffer();
-				MinecraftMethods.getPacketWriteByteBufMethod().invoke(handle, buffer);
-				
+				WrappedByteBuf buffer = createPacketBuffer();
+				MinecraftMethods.getPacketWriteByteBufMethod().invoke(handle, buffer.getHandle());
+
 				output.writeInt(buffer.readableBytes());
 				buffer.readBytes(output, buffer.readableBytes());
-				
 			} else {
 				// Call the write-method
 				output.writeInt(-1);
@@ -932,10 +965,10 @@ public class PacketContainer implements Serializable {
 			// Call the read method
 			try {
 				if (MinecraftReflection.isUsingNetty()) {
-					ByteBuf buffer = createPacketBuffer();
+					WrappedByteBuf buffer = createPacketBuffer();
 					buffer.writeBytes(input, input.readInt());
 					
-					MinecraftMethods.getPacketReadByteBufMethod().invoke(handle, buffer);
+					MinecraftMethods.getPacketReadByteBufMethod().invoke(handle, buffer.getHandle());
 				} else {
 					if (input.readInt() != -1)
 						throw new IllegalArgumentException("Cannot load a packet from 1.7.2 in 1.6.4.");
@@ -960,10 +993,75 @@ public class PacketContainer implements Serializable {
 	 * Construct a new packet data serializer.
 	 * @return The packet data serializer.
 	 */
-	private ByteBuf createPacketBuffer() {
-		return MinecraftReflection.getPacketDataSerializer(UnpooledByteBufAllocator.DEFAULT.buffer());
+	private WrappedByteBuf createPacketBuffer() {
+		return Netty.createPacketBuffer();
 	}
-	
+
+	// ---- Metadata
+	// This map will only be initialized if it is actually used
+	private Map<String, Object> metadata;
+
+	/**
+	 * Gets the metadata value for a given key.
+	 * 
+	 * @param key Metadata key
+	 * @return Metadata value, or null if nonexistent.
+	 */
+	public Object getMetadata(String key) {
+		if (metadata != null) {
+			return metadata.get(key);
+		}
+
+		return null;
+	}
+
+	/**
+	 * Adds metadata to this packet.
+	 * <p>
+	 * Note: Since metadata is lazily initialized, this may result in the creation of the metadata map.
+	 * 
+	 * @param key Metadata key
+	 * @param value Metadata value
+	 */
+	public void addMetadata(String key, Object value) {
+		if (metadata == null) {
+			metadata = new HashMap<String, Object>();
+		}
+
+		metadata.put(key, value);
+	}
+
+	/**
+	 * Removes metadata from this packet.
+	 * <p>
+	 * Note: If this operation leaves the metadata map empty, the map will be set to null.
+	 * 
+	 * @param key Metadata key
+	 * @return The previous value, or null if nonexistant.
+	 */
+	public Object removeMetadata(String key) {
+		if (metadata != null) {
+			Object value = metadata.remove(key);
+			if (metadata.isEmpty()) {
+				metadata = null;
+			}
+
+			return value;
+		}
+
+		return null;
+	}
+
+	/**
+	 * Whether or not this packet has metadata for a given key.
+	 * 
+	 * @param key Metadata key
+	 * @return True if this packet has metadata for the key, false if not.
+	 */
+	public boolean hasMetadata(String key) {
+		return metadata != null && metadata.containsKey(key);
+	}
+
 	/**
 	 * Retrieve the cached method concurrently.
 	 * @param lookup - a lazy lookup cache.
@@ -1067,5 +1165,10 @@ public class PacketContainer implements Serializable {
 		public Class<WrappedChatComponent[]> getSpecificType() {
 			return WrappedChatComponent[].class;
 		}
+	}
+
+	@Override
+	public String toString() {
+		return "PacketContainer[type=" + type + ", structureModifier=" + structureModifier + "]";
 	}
 }

@@ -1,4 +1,4 @@
-/*
+/**
  *  ProtocolLib - Bukkit server library that allows access to the Minecraft protocol.
  *  Copyright (C) 2012 Kristian S. Stangeland
  *
@@ -14,12 +14,13 @@
  *  if not, write to the Free Software Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA
  *  02111-1307 USA
  */
-
 package com.comphenix.protocol;
 
 import java.io.File;
 import java.io.IOException;
 import java.text.MessageFormat;
+import java.util.Arrays;
+import java.util.List;
 import java.util.Set;
 import java.util.logging.Handler;
 import java.util.logging.Level;
@@ -31,6 +32,7 @@ import java.util.regex.Pattern;
 import org.bukkit.Server;
 import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.PluginCommand;
+import org.bukkit.plugin.Plugin;
 import org.bukkit.plugin.PluginManager;
 import org.bukkit.plugin.java.JavaPlugin;
 
@@ -83,17 +85,17 @@ public class ProtocolLibrary extends JavaPlugin {
 	/**
 	 * The minimum version ProtocolLib has been tested with.
 	 */
-	public static final String MINIMUM_MINECRAFT_VERSION = "1.8";
+	public static final String MINIMUM_MINECRAFT_VERSION = "1.0";
 
 	/**
 	 * The maximum version ProtocolLib has been tested with,
 	 */
-	public static final String MAXIMUM_MINECRAFT_VERSION = "1.8";
+	public static final String MAXIMUM_MINECRAFT_VERSION = "1.8.8";
 
 	/**
-	 * The date (with ISO 8601 or YYYY-MM-DD) when the most recent version was released.
+	 * The date (with ISO 8601 or YYYY-MM-DD) when the most recent version (1.8.8) was released.
 	 */
-	public static final String MINECRAFT_LAST_RELEASE_DATE = "2014-09-02";
+	public static final String MINECRAFT_LAST_RELEASE_DATE = "2015-07-27";
 
 	// Different commands
 	private enum ProtocolCommand {
@@ -169,6 +171,10 @@ public class ProtocolLibrary extends JavaPlugin {
 		DetailedErrorReporter detailedReporter = new DetailedErrorReporter(this);
 		reporter = getFilteredReporter(detailedReporter);
 
+		// Configuration
+		saveDefaultConfig();
+		reloadConfig();
+
 		try {
 			config = new ProtocolConfig(this);
 		} catch (Exception e) {
@@ -200,7 +206,14 @@ public class ProtocolLibrary extends JavaPlugin {
 			MinecraftVersion version = verifyMinecraftVersion();
 
 			unhookTask = new DelayedSingleTask(this);
-			protocolManager = PacketFilterManager.newBuilder().classLoader(getClassLoader()).server(getServer()).library(this).minecraftVersion(version).unhookTask(unhookTask).reporter(reporter).build();
+			protocolManager = PacketFilterManager.newBuilder()
+					.classLoader(getClassLoader())
+					.server(getServer())
+					.library(this)
+					.minecraftVersion(version)
+					.unhookTask(unhookTask)
+					.reporter(reporter)
+					.build();
 
 			// Setup error reporter
 			detailedReporter.addGlobalParameter("manager", protocolManager);
@@ -241,7 +254,7 @@ public class ProtocolLibrary extends JavaPlugin {
 			try {
 				switch (command) {
 				case PROTOCOL:
-					commandProtocol = new CommandProtocol(reporter, this, config);
+					commandProtocol = new CommandProtocol(reporter, this);
 					break;
 				case FILTER:
 					commandFilter = new CommandFilter(reporter, this, config);
@@ -254,8 +267,11 @@ public class ProtocolLibrary extends JavaPlugin {
 				throw e;
 			} catch (ThreadDeath e) {
 				throw e;
+			} catch (LinkageError e) {
+				logger.warning("Failed to register command " + command.name() + ": " + e);
 			} catch (Throwable e) {
-				reporter.reportWarning(this, Report.newBuilder(REPORT_CANNOT_REGISTER_COMMAND).messageParam(command.name(), e.getMessage()).error(e));
+				reporter.reportWarning(this, Report.newBuilder(REPORT_CANNOT_REGISTER_COMMAND)
+						.messageParam(command.name(), e.getMessage()).error(e));
 			}
 		}
 	}
@@ -347,18 +363,25 @@ public class ProtocolLibrary extends JavaPlugin {
 			// Don't do anything else!
 			if (manager == null)
 				return;
+
 			// Silly plugin reloaders!
 			if (protocolManager == null) {
 				Logger directLogging = Logger.getLogger("Minecraft");
-				String[] message = new String[] { " PROTOCOLLIB DOES NOT SUPPORT PLUGIN RELOADERS. ", " PLEASE USE THE BUILT-IN RELOAD COMMAND. ", };
+				String[] message = new String[] {
+						" ProtocolLib does not support plugin reloaders! ", " Please use the built-in reload command! "
+				};
 
 				// Print as severe
 				for (String line : ChatExtensions.toFlowerBox(message, "*", 3, 1)) {
 					directLogging.severe(line);
 				}
+
 				disablePlugin();
 				return;
 			}
+
+			// Check for incompatible plugins
+			checkForIncompatibility(manager);
 
 			// Initialize background compiler
 			if (backgroundCompiler == null && config.isBackgroundCompilerEnabled()) {
@@ -381,7 +404,6 @@ public class ProtocolLibrary extends JavaPlugin {
 			// Worker that ensures that async packets are eventually sent
 			// It also performs the update check.
 			createPacketTask(server);
-
 		} catch (OutOfMemoryError e) {
 			throw e;
 		} catch (ThreadDeath e) {
@@ -408,6 +430,25 @@ public class ProtocolLibrary extends JavaPlugin {
 		}
 	}
 
+	// Plugin authors: Notify me to remove these
+	public static List<String> INCOMPATIBLE = Arrays.asList("TagAPI");
+
+	private void checkForIncompatibility(PluginManager manager) {
+		for (String plugin : INCOMPATIBLE) {
+			if (manager.getPlugin(plugin) != null) {
+				// Special case for TagAPI and iTag
+				if (plugin.equals("TagAPI")) {
+					Plugin iTag = manager.getPlugin("iTag");
+					if (iTag == null || iTag.getDescription().getVersion().startsWith("1.0")) {
+						logger.severe("Detected incompatible plugin: TagAPI");
+					}
+				} else {
+					logger.severe("Detected incompatible plugin: " + plugin);
+				}
+			}
+		}
+	}
+
 	// Used to check Minecraft version
 	private MinecraftVersion verifyMinecraftVersion() {
 		MinecraftVersion minimum = new MinecraftVersion(MINIMUM_MINECRAFT_VERSION);
@@ -424,8 +465,8 @@ public class ProtocolLibrary extends JavaPlugin {
 				if (current.compareTo(maximum) > 0)
 					logger.warning("Version " + current + " has not yet been tested! Proceed with caution.");
 			}
-			return current;
 
+			return current;
 		} catch (Exception e) {
 			reporter.reportWarning(this, Report.newBuilder(REPORT_CANNOT_PARSE_MINECRAFT_VERSION).error(e).messageParam(maximum));
 
@@ -449,7 +490,6 @@ public class ProtocolLibrary extends JavaPlugin {
 			for (File candidate : pluginFolder.listFiles()) {
 				if (candidate.isFile() && !candidate.equals(loadedFile)) {
 					Matcher match = ourPlugin.matcher(candidate.getName());
-
 					if (match.matches()) {
 						MinecraftVersion version = new MinecraftVersion(match.group(1));
 
@@ -462,7 +502,6 @@ public class ProtocolLibrary extends JavaPlugin {
 					}
 				}
 			}
-
 		} catch (Exception e) {
 			reporter.reportWarning(this, Report.newBuilder(REPORT_CANNOT_DETECT_CONFLICTING_PLUGINS).error(e));
 		}
@@ -472,7 +511,9 @@ public class ProtocolLibrary extends JavaPlugin {
 			// We don't need to set internal classes or instances to NULL - that would break the other loaded plugin
 			skipDisable = true;
 
-			throw new IllegalStateException(String.format("Detected a newer version of ProtocolLib (%s) in plugin folder than the current (%s). Disabling.", newestVersion.getVersion(), currentVersion.getVersion()));
+			throw new IllegalStateException(String.format(
+					"Detected a newer version of ProtocolLib (%s) in plugin folder than the current (%s). Disabling.",
+					newestVersion.getVersion(), currentVersion.getVersion()));
 		}
 	}
 
@@ -485,11 +526,11 @@ public class ProtocolLibrary extends JavaPlugin {
 			PluginCommand command = getCommand(name);
 
 			// Try to load the command
-			if (command != null)
+			if (command != null) {
 				command.setExecutor(executor);
-			else
+			} else {
 				throw new RuntimeException("plugin.yml might be corrupt.");
-
+			}
 		} catch (RuntimeException e) {
 			reporter.reportWarning(this, Report.newBuilder(REPORT_CANNOT_REGISTER_COMMAND).messageParam(name, e.getMessage()).error(e));
 		}
@@ -662,5 +703,9 @@ public class ProtocolLibrary extends JavaPlugin {
 
 	public static void log(String message, Object... args) {
 		log(Level.INFO, message, args);
+	}
+
+	public static Logger getStaticLogger() {
+		return logger;
 	}
 }

@@ -19,24 +19,25 @@ import javax.annotation.Nonnull;
  */
 public interface NbtCompound extends NbtBase<Map<String, NbtBase<?>>>, Iterable<NbtBase<?>> {
 	@Override
-	@Deprecated()
+	@Deprecated
 	public Map<String, NbtBase<?>> getValue();
 	
 	/**
 	 * Determine if an entry with the given key exists or not.
-	 * @param key - the key to lookup. 
+	 * @param key - the key to lookup.
 	 * @return TRUE if an entry with the given key exists, FALSE otherwise.
 	 */
 	public abstract boolean containsKey(String key);
 
 	/**
-	 * Retrieve a Set view of the keys of each entry in this compound. 
+	 * Retrieve a Set view of the keys of each entry in this compound.
 	 * @return The keys of each entry.
 	 */
 	public abstract Set<String> getKeys();
 
 	/**
 	 * Retrieve the value of a given entry.
+	 * @param <T> Type
 	 * @param key - key of the entry to retrieve.
 	 * @return The value of this entry, or NULL if not found.
 	 */
@@ -52,6 +53,7 @@ public interface NbtCompound extends NbtBase<Map<String, NbtBase<?>>>, Iterable<
 
 	/**
 	 * Set a entry based on its name.
+	 * @param <T> Type
 	 * @param entry - entry with a name and value.
 	 * @return This compound, for chaining.
 	 * @throws IllegalArgumentException If entry is NULL.
@@ -260,7 +262,7 @@ public interface NbtCompound extends NbtBase<Map<String, NbtBase<?>>>, Iterable<
 	public abstract NbtCompound put(String key, int[] value);
 	
 	/**
-	 * Associates a given Java primitive value, list, map or NbtBase<?> with a certain key.
+	 * Associates a given Java primitive value, list, map or NbtBase with a certain key.
 	 * <p>
 	 * If the value is NULL, the corresponding key is removed. Any Map or List will be converted
 	 * to a corresponding NbtCompound or NbtList.
@@ -302,6 +304,7 @@ public interface NbtCompound extends NbtBase<Map<String, NbtBase<?>>>, Iterable<
 
 	/**
 	 * Retrieve the NBT list value of an entry identified by a given key.
+	 * @param <T> Type
 	 * @param key - the key of the entry.
 	 * @return The NBT list value of the entry.
 	 * @throws IllegalArgumentException If the key doesn't exist.
@@ -310,6 +313,7 @@ public interface NbtCompound extends NbtBase<Map<String, NbtBase<?>>>, Iterable<
 
 	/**
 	 * Retrieve a NBT list value by its key, or create a new list if it doesn't exist.
+	 * @param <T> Type
 	 * @param key - the key of the entry to find or create.
 	 * @return The compound value that was retrieved or just created.
 	 */
@@ -317,6 +321,7 @@ public interface NbtCompound extends NbtBase<Map<String, NbtBase<?>>>, Iterable<
 
 	/**
 	 * Associate a NBT list with the given key.
+	 * @param <T> Type
 	 * @param list - the list value.
 	 * @return This current compound, for chaining.
 	 */
@@ -324,6 +329,7 @@ public interface NbtCompound extends NbtBase<Map<String, NbtBase<?>>>, Iterable<
 
 	/**
 	 * Associate a new NBT list with the given key.
+	 * @param <T> Type
 	 * @param key - the key and name of the new NBT list.
 	 * @param list - the list of NBT elements.
 	 * @return This current compound, for chaining.
@@ -332,6 +338,7 @@ public interface NbtCompound extends NbtBase<Map<String, NbtBase<?>>>, Iterable<
 
 	/**
 	 * Remove the NBT element that is associated with the given key.
+	 * @param <T> Type
 	 * @param key - the key of the element to remove.
 	 * @return The removed element, or NULL if no such element was found.
 	 */
@@ -341,5 +348,6 @@ public interface NbtCompound extends NbtBase<Map<String, NbtBase<?>>>, Iterable<
 	 * Retrieve an iterator view of the NBT tags stored in this compound.
 	 * @return The tags stored in this compound.
 	 */
+	@Override
 	public abstract Iterator<NbtBase<?>> iterator();
 }

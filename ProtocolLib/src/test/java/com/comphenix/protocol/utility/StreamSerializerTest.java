@@ -8,16 +8,14 @@ import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
 
-import net.minecraft.server.v1_8_R1.IntHashMap;
+import net.minecraft.server.v1_8_R3.IntHashMap;
 
 import org.bukkit.Material;
-import org.bukkit.craftbukkit.v1_8_R1.inventory.CraftItemFactory;
 import org.bukkit.inventory.ItemStack;
 import org.junit.BeforeClass;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.powermock.core.classloader.annotations.PowerMockIgnore;
-import org.powermock.core.classloader.annotations.PrepareForTest;
 
 import com.comphenix.protocol.BukkitInitialization;
 import com.comphenix.protocol.wrappers.nbt.NbtCompound;
@@ -25,8 +23,9 @@ import com.comphenix.protocol.wrappers.nbt.NbtFactory;
 
 @RunWith(org.powermock.modules.junit4.PowerMockRunner.class)
 @PowerMockIgnore({ "org.apache.log4j.*", "org.apache.logging.*", "org.bukkit.craftbukkit.libs.jline.*" })
-@PrepareForTest(CraftItemFactory.class)
+//@PrepareForTest(CraftItemFactory.class)
 public class StreamSerializerTest {
+
 	@BeforeClass
 	public static void initializeBukkit() throws IllegalAccessException {
 		BukkitInitialization.initializeItemMeta();
@@ -64,21 +63,37 @@ public class StreamSerializerTest {
 		
 		assertEquals(initial, deserialized);
 	}
-	
+
+	// For future reference, items are saved in the ChunkRegionLoader and TileEntityChest
+
 	@Test
 	public void testCompound() throws IOException {
 		StreamSerializer serializer = new StreamSerializer();
 		NbtCompound initial = NbtFactory.ofCompound("tag");
 		initial.put("name", "Ole");
 		initial.put("age", 20);
-		
-		// Buffer
+
 		ByteArrayOutputStream buffer = new ByteArrayOutputStream();
 		serializer.serializeCompound(new DataOutputStream(buffer), initial);
 		
 		DataInputStream input = new DataInputStream(
 				new ByteArrayInputStream(buffer.toByteArray()));
 		NbtCompound deserialized = serializer.deserializeCompound(input);
+		
+		assertEquals(initial, deserialized);
+	}
+
+	@Test
+	public void testItems() throws IOException {
+		StreamSerializer serializer = new StreamSerializer();
+		ItemStack initial = new ItemStack(Material.STRING);
+
+		ByteArrayOutputStream buffer = new ByteArrayOutputStream();
+		serializer.serializeItemStack(new DataOutputStream(buffer), initial);
+		
+		DataInputStream input = new DataInputStream(
+				new ByteArrayInputStream(buffer.toByteArray()));
+		ItemStack deserialized = serializer.deserializeItemStack(input);
 		
 		assertEquals(initial, deserialized);
 	}

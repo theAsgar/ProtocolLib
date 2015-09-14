@@ -1,5 +1,4 @@
-ProtocolLib 
-===========
+# ProtocolLib [![Travis Status](https://travis-ci.org/dmulloy2/ProtocolLib.svg?branch=master)](https://travis-ci.org/dmulloy2/ProtocolLib)
 
 Certain tasks are impossible to perform with the standard Bukkit API, and may require 
 working with and even modify Minecraft directly. A common technique is to modify incoming 
@@ -19,13 +18,11 @@ Currently maintained by dmulloy2 on behalf of [Spigot](http://www.spigotmc.org/)
 * [Downloads](http://ci.shadowvolt.com/job/ProtocolLib)
 * [JavaDoc](http://ci.shadowvolt.com/job/ProtocolLib/javadoc)
 
-Compilation
-----------
+### Compilation
 
 ProtocolLib is built with Maven and requires Spigot and SpigotAPI, which can be found [here](http://www.spigotmc.org/wiki/buildtools/).
 
-A new API
----------
+### A new API
 
 __ProtocolLib__ attempts to solve this problem by providing a event API, much like Bukkit, 
 that allows plugins to monitor, modify, or cancel packets sent and received. But, more importantly, 
@@ -35,10 +32,10 @@ You no longer have to reference CraftBukkit!
 ### Using ProtocolLib
 
 To use this library, first add ProtocolLib.jar to your Java build path. Then, add ProtocolLib
-as a dependency (or soft-dependency, if you can live without it) to your plugin.yml file:
+as a dependency or soft dependency to your plugin.yml file like any other plugin:
 
 ````yml
-depends: [ProtocolLib]
+depend: [ProtocolLib]
 ````
 
 You can also add ProtocolLib as a Maven dependency:
@@ -46,8 +43,8 @@ You can also add ProtocolLib as a Maven dependency:
 ````xml
 <repositories>
   <repository>
-    <id>shadowvolt-repo</id>
-    <url>http://ci.shadowvolt.com/plugin/repository/everything/</url>
+    <id>dmulloy2-repo</id>
+    <url>http://repo.dmulloy2.net/content/groups/public/</url>
   </repository>
   ...
 </repository>
@@ -56,7 +53,7 @@ You can also add ProtocolLib as a Maven dependency:
   <dependency>
     <groupId>com.comphenix.protocol</groupId>
     <artifactId>ProtocolLib</artifactId>
-    <version>3.6.3-SNAPSHOT</version>
+    <version>3.6.4-SNAPSHOT</version>
   </dependency>
 </dependencies>
 ````
@@ -148,8 +145,7 @@ try {
 }
 ````
 
-Compatibility
-------------
+### Compatibility
 
 One of the main goals of this project was to achieve maximum compatibility with CraftBukkit. And the end
 result is quite flexible. Aside from netty package changes, it should be resilient against future changes.
